@@ -146,10 +146,9 @@ class LiarAgent(BW4TBrain):
         # create coordinates that we have to visit to search the room
         above_doors = agent_x, agent_y - 2
         right = agent_x + 1, agent_y - 2
-        left = agent_x - 1, agent_y - 2
         left_left = agent_x - 2, agent_y - 2
 
-        return self.plan_path([above_doors, right, left, left_left], phase)
+        return self.plan_path([above_doors, right, left_left], phase)
 
     def search_room(self, state, phase):
         """ Looks for any blocks in radius of the agent, if blocks match any goal block, records it's location and id.
@@ -173,11 +172,8 @@ class LiarAgent(BW4TBrain):
         # check if any of the found blocks are our goal block
         for block, location, obj_id in blocks:
             for key, goal_block in self._goal_blocks.items():
-                print(block)
-                print(goal_block[0], goal_block[1])
 
                 if block['colour'] == goal_block[1] and block['shape'] == goal_block[0]:
-                    print("Found goal block")
 
                     self._goal_blocks[key][2] = location
                     self._goal_blocks[key][3] = obj_id
