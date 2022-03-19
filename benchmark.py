@@ -91,20 +91,22 @@ def make_agent_combinations(agent_pool, agent_number, number_of_combinations):
 
 if __name__ == "__main__":
     #amount of agents in one run
-    agent_number = 5
+    agent_number = 4
     number_of_combinations = 2 #number of random agent combinations
-    number_of_runs = 3 # runs for each combination
+    number_of_runs = 2 # runs for each combination
     filename = 'data.json' # result file
 
+    total_runs = number_of_combinations * number_of_runs
+
     agent_pool = {
-        "liar": {
+        "liar": { # name here has to match name in agent_pool[agent_name][agent]
             "agent": {'name':'liar', 'botclass':LiarAgent, 'settings':{}},
             "join_prob": 0.5, # probability that this agent ends up in the lineup
             "max": 10, #max number of this agent type
             "added": 0 # Do not change this one
         },
         "baseline": {
-            "agent": {'name':'agent', 'botclass':BaseLineAgent, 'settings':{}},
+            "agent": {'name':'baseline', 'botclass':BaseLineAgent, 'settings':{}},
             "join_prob": 0.7,
             "max": 10,
             "added": 0
@@ -113,7 +115,23 @@ if __name__ == "__main__":
 
     agent_combinations, setup = make_agent_combinations(agent_pool, agent_number, number_of_combinations)
 
-    games = {}
+    games = {
+        "results": None
+    }
+
+    strat_ticks = 0
+    strat_success_rate = 0
+    strat_moves = 0
+    strat_agent_messages = {
+        key: 0 for key in agent_pool.keys()
+    }
+    strat_agent_drops = {
+        key: 0 for key in agent_pool.keys() # for easier comparison metrics are dictionaries containing agents
+    }
+    strat_agent_moves = {
+        key: 0 for key in agent_pool.keys()
+    }
+
 
     print("Started benchmark...")
     for idx, agent_combination in enumerate(agent_combinations):
@@ -145,6 +163,18 @@ if __name__ == "__main__":
                     total_agent_drops[drops_key] += drops_value
                     total_agent_moves[moves_key] += moves_value
 
+        strat_success_rate += success_rate
+        strat_moves += sum(total_agent_moves.values())
+        strat_ticks += total_ticks
+
+        for (messages_key, messages_value), (drops_key, drops_value), (moves_key, moves_value)\
+                in zip(total_agent_messages.items(), total_agent_drops.items(), total_agent_moves.items()):
+
+            strat_agent_messages[messages_key.rstrip("0123456789")] += messages_value
+            strat_agent_moves[moves_key.rstrip("0123456789")]+= moves_value
+            strat_agent_drops[drops_key.rstrip("0123456789")] += drops_value
+
+
         games[f"game_{idx}"] = {
             "setup": results.getAgents(),
             "success_rate": success_rate / number_of_runs,
@@ -155,5 +185,15 @@ if __name__ == "__main__":
             "avg_agent_moves": {key : total_agent_moves[key] / number_of_runs for key in total_agent_moves},
         }
 
+    games["results"] = {
+        "agents": list(agent_pool.keys()),
+        "success_rate": strat_success_rate / total_runs,
+        "avg_moves": strat_moves / total_runs,
+        "avg_ticks": strat_ticks / total_runs,
+        "avg_agent_messages": {key : strat_agent_messages[key] / total_runs for key in strat_agent_messages},
+        "avg_agent_drops": {key: strat_agent_drops[key] / total_runs for key in strat_agent_drops},
+        "avg_agent_moves": {key: strat_agent_moves[key] / total_runs for key in strat_agent_moves},
+    }
+
     with open(filename, 'w') as fp:
-        json.dump(games, fp, indent=2)
+        json.dump(games, fp, indent=4)
