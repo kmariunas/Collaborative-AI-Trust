@@ -239,46 +239,47 @@ class LiarAgent(BW4TBrain):
         receivedMessages = self._processMessages(self._teamMembers)
         # Update trust beliefs for team members
         self._trustBlief(self._teamMembers, receivedMessages)
+        # print(f"Phase: {self._phase}")
         
         while True:
             if Phase.PLAN_PATH_TO_OPEN_DOOR==self._phase:
-                print("Phase: PLAN_PATH_TO_OPEN_DOOR")
+                # print("Phase: PLAN_PATH_TO_OPEN_DOOR")
                 return self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR)
 
             if Phase.FOLLOW_PATH_TO_OPEN_DOOR==self._phase:
-                print("Phase: FOLLOW_PATH_TO_OPEN_DOOR")
+                # print("Phase: FOLLOW_PATH_TO_OPEN_DOOR")
                 return self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
 
             if Phase.PLAN_ROOM_SEARCH==self._phase:
-                print("Phase: PLAN_ROOM_SEARCH")
+                # print("Phase: PLAN_ROOM_SEARCH")
                 return self.plan_room_search(state, Phase.SEARCH_ROOM)
 
             if Phase.SEARCH_ROOM==self._phase:
-                print("Phase: SEARCH_ROOM")
+                # print("Phase: SEARCH_ROOM")
                 return self.search_room(state, Phase.PLAN_PATH_TO_BLOCK)
 
             if Phase.PLAN_PATH_TO_BLOCK==self._phase:
-                print("Phase: PLAN_PATH_TO_BLOCK")
+                # print("Phase: PLAN_PATH_TO_BLOCK")
                 return self.plan_path(self._goal_blocks[self._searching_for][2], Phase.FOLLOW_PATH_TO_BLOCK)
 
             if Phase.FOLLOW_PATH_TO_BLOCK==self._phase:
-                print("Phase: FOLLOW_PATH_TO_BLOCK")
+                # print("Phase: FOLLOW_PATH_TO_BLOCK")
                 return self.follow_path(state, Phase.GRAB_BLOCK)
 
             if Phase.GRAB_BLOCK==self._phase:
-                print("Phase: GRAB_BLOCK")
+                # print("Phase: GRAB_BLOCK")
                 return self.grab_block(self._goal_blocks[self._searching_for][3], Phase.PLAN_PATH_TO_DROP)
 
             if Phase.PLAN_PATH_TO_DROP==self._phase:
-                print("Phase: PLAN_PATH_TO_DROP")
+                # print("Phase: PLAN_PATH_TO_DROP")
                 self.plan_path(self._goal_blocks[self._searching_for][4],Phase.RETURN_GOAL_BLOCK)
 
             if Phase.RETURN_GOAL_BLOCK==self._phase:
-                print("Phase: RETURN_GOAL_BLOCK")
+                # print("Phase: RETURN_GOAL_BLOCK")
                 return self.follow_path(state, Phase.DROP_BLOCK)
 
             if Phase.DROP_BLOCK==self._phase:
-                print("Phase: DROP_BLOCK")
+                # print("Phase: DROP_BLOCK")
                 return self.drop_block(Phase.SEARCH_ROOM)
 
     def _sendMessage(self, mssg, sender):
