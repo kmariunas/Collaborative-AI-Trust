@@ -71,6 +71,16 @@ class GenericAgent(BW4TBrain):
         return None, {}
 
     def plan_path_to_closed_door(self, state, phase, planb_phase: Phase):
+        """ Finds doors that are still closed and plans a path to them
+
+        Args:
+            state: perceived state by the agent
+            phase: Next phase after successfuly finding closed door
+            planb_phase: Next phase if no closed doors found
+
+        Returns:
+            None, {}
+        """
         closedDoors = [door for door in state.values()
                        if 'class_inheritance' in door and 'Door' in door['class_inheritance'] and not door['is_open']]
         if len(closedDoors) == 0:
@@ -87,6 +97,14 @@ class GenericAgent(BW4TBrain):
         return self.plan_path(doorLoc, phase)
 
     def open_door(self, phase):
+        """ opens the door
+
+        Args:
+            phase: Next phase after opening the door
+
+        Returns:
+            OpenDoorAction
+        """
         self._phase = phase
         # Open door
         return OpenDoorAction.__name__, {'object_id': self._door['obj_id']}
@@ -100,7 +118,7 @@ class GenericAgent(BW4TBrain):
             planb_phase: Next Phase if the agent has not found any open doors
 
         Note:
-            After successfully finding open and unvisited door this method changes the phase to FOLLOW_PATH_TO_OPEN_DOOR
+            After successfully finding open and unvisited door this method changes the phase to phase
 
         Returns: None, {}
         """
@@ -127,7 +145,8 @@ class GenericAgent(BW4TBrain):
         """ Adds waypoints to the navigator to search the whole room.
 
         Args:
-            state:matrx state perceived by the agent.
+            state: matrx state perceived by the agent.
+            phase: Next phase after planning
 
         Note:
             Coordinates of the tiles the agent must visit are designed for 4x2 rooms.
@@ -145,16 +164,18 @@ class GenericAgent(BW4TBrain):
 
         return self.plan_path([above_doors, right, left_left], phase)
 
-    def search_room(self, state, phase):
+    def search_room(self, state, phase, planb_phase):
         """ Looks for any blocks in radius of the agent, if blocks match any goal block, records it's location and id.
             After each search agent moves to the waypoint given by @plan_room_search.
 
         Args:
             state: matrx state perceived by the agent.
+            phase: Next phase if the goal block is found in the room
+            planb_phase: Next phase if no goal block is found
 
         Note:
             Once the agent searches the entire room, if it has found a block it is looking for, it will set the phase
-            to PLAN_PATH_TO_BLOCK, otherwise the agent looks for other rooms with phase PLAN_PATH_TO_OPEN_DOOR.
+            to phase, otherwise the agent sets it to planb_phase
 
         Returns: Movement action .
 
@@ -182,7 +203,7 @@ class GenericAgent(BW4TBrain):
         if self._goal_blocks[self._searching_for][2] is not None:
             self._phase = phase
         else:
-            self._phase = Phase.PLAN_PATH_TO_CLOSED_DOOR
+            self._phase = planb_phase
 
         return None, {}
 
@@ -191,6 +212,7 @@ class GenericAgent(BW4TBrain):
 
         Args:
             obj_id: id of the object the agent has to grab
+            phase: Next phase after grabbing a block
 
         Returns:
             GrabObject Action
@@ -203,7 +225,7 @@ class GenericAgent(BW4TBrain):
         """ Drops the block under the agent.
 
         Args:
-
+            phase: Next phase after dropping the block
 
         Note:
             updates the searching_for variable which indicates which goal block the agent is looking for
@@ -219,6 +241,11 @@ class GenericAgent(BW4TBrain):
         return action
 
     def initialize_state(self, state):
+        """ Initialize team members and read goal blocks
+
+        Args:
+            state: state perceived by the agent
+        """
         for member in state['World']['team_members']:
             if member!=self.agent_name and member not in self._teamMembers:
                 self._teamMembers.append(member)
@@ -259,7 +286,7 @@ class GenericAgent(BW4TBrain):
                 return self.plan_room_search(state, Phase.SEARCH_ROOM)
 
             if Phase.SEARCH_ROOM==self._phase:
-                return self.search_room(state, Phase.PLAN_PATH_TO_BLOCK)
+                return self.search_room(state, Phase.PLAN_PATH_TO_BLOCK, Phase.PLAN_PATH_TO_CLOSED_DOOR)
 
             if Phase.PLAN_PATH_TO_BLOCK==self._phase:
                 return self.plan_path(self._goal_blocks[self._searching_for][2], Phase.FOLLOW_PATH_TO_BLOCK)
