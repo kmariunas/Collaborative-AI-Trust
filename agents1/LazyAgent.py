@@ -1,12 +1,14 @@
-from typing import final, List, Dict, Final
-import enum, random
-from bw4t.BW4TBrain import BW4TBrain
-from matrx.agents.agent_utils.state import State
-from matrx.agents.agent_utils.navigator import Navigator
-from matrx.agents.agent_utils.state_tracker import StateTracker
+import enum
+import random
+from typing import Dict
+
 from matrx.actions.door_actions import OpenDoorAction
-from matrx.actions.object_actions import GrabObject, DropObject
+from matrx.agents.agent_utils.navigator import Navigator
+from matrx.agents.agent_utils.state import State
+from matrx.agents.agent_utils.state_tracker import StateTracker
 from matrx.messages.message import Message
+
+from bw4t.BW4TBrain import BW4TBrain
 
 
 class Phase(enum.Enum):
@@ -118,7 +120,7 @@ class LazyAgent(BW4TBrain):
         return None, {}
 
     def plan_path_to_open_door(self, state, phase):
-        """ Finds opened door that haven't been visited and plans a path to that door
+        """ Finds opened doors that haven't been visited and plans a path to that door
 
         Args:
             state: Matrx state perceived by the agent
@@ -169,7 +171,8 @@ class LazyAgent(BW4TBrain):
         return self.plan_path([above_doors, right, left, left_left], phase)
 
     def search_room(self, state, phase):
-        """ Looks for any blocks in radius of the agent, if blocks match any goal block, records it's location and id.
+        """ Looks for any blocks in radius of the agent with a 50% probability of abandoning the search midway.
+            If blocks match any goal block, records it's location and id.
             After each search agent moves to the waypoint given by @plan_room_search.
 
         Args:
@@ -182,8 +185,6 @@ class LazyAgent(BW4TBrain):
         Returns: Movement action .
 
         """
-
-        # TODO: documentation
         if self._finish_action is None:
             if random.uniform(0, 1) < 0.5:
                 print("finish action")
