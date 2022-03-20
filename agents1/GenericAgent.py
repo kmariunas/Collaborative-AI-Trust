@@ -1,4 +1,4 @@
-
+import sys
 from typing import final, List, Dict, Final
 import enum, random
 from bw4t.BW4TBrain import BW4TBrain
@@ -29,6 +29,20 @@ class GenericAgent(BW4TBrain):
 
     def filter_bw4t_observations(self, state):
         return state
+
+    def closest_point_idx(self, point, list_of_points):
+        # manhattan distance
+        min_distance = sys.maxsize
+        closest_idx = None
+
+        for idx, location in enumerate(list_of_points):
+            distance = abs(point[0] - location[0]) + abs(point[1] - location[1])
+
+            if distance < min_distance:
+                min_distance = distance
+                closest_idx = idx
+
+        return closest_idx
 
     def follow_path(self, state, phase):
         """ Moves the agent towards the a destination set in the navigator
@@ -64,6 +78,7 @@ class GenericAgent(BW4TBrain):
         self._navigator.reset_full()
         # add waypoint to the block
         self._navigator.add_waypoints(coord)
+        print(self._phase, self._navigator.get_all_waypoints())
 
         # follow path to block
         self._phase = phase
@@ -88,7 +103,11 @@ class GenericAgent(BW4TBrain):
             return None, {}
 
         # Randomly pick a closed door
-        self._door = random.choice(closedDoors)
+        # self._door = random.choice(closedDoors)
+        print(closedDoors)
+
+        door_idx = self.closest_point_idx(state[self.agent_name]['location'], list(map(lambda x: x["location"], closedDoors)))
+        self._door = closedDoors[door_idx]
         doorLoc = self._door['location']
         # Location in front of door is south from door
         doorLoc = doorLoc[0], doorLoc[1] + 1
@@ -134,7 +153,8 @@ class GenericAgent(BW4TBrain):
 
         # Randomly pick a open door
         # TODO: look for closest doors?
-        self._door = random.choice(open_doors)
+        door_idx = self.closest_point_idx(state[self.agent_name]['location'], list(map(lambda x: x["location"], closedDoors)))
+        self._door = open_doors[door_idx]
         doorLoc = self._door['location']
         # Location in front of door is south from door
         doorLoc = doorLoc[0], doorLoc[1] + 1
