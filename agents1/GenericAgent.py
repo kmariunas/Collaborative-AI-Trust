@@ -1,4 +1,3 @@
-
 from typing import final, List, Dict, Final
 import enum, random
 from bw4t.BW4TBrain import BW4TBrain
@@ -11,9 +10,10 @@ from matrx.messages.message import Message
 from agents1.Phase import Phase
 from agents1.Message import MessageBuilder as mb, MessageType as mt
 
+
 class GenericAgent(BW4TBrain):
 
-    def __init__(self, settings:Dict[str,object], phase: Phase):
+    def __init__(self, settings: Dict[str, object], phase: Phase):
         super().__init__(settings)
         self.agent_name = None
         self._phase = phase
@@ -21,14 +21,14 @@ class GenericAgent(BW4TBrain):
         self._visited_rooms = []
         self._goal_blocks = None
         self._searching_for = "block0"
-        self._mb = None                 # message builder
+        self._mb = None  # message builder
 
     def initialize(self):
         super().initialize()
         self._mb = mb(self.agent_name)
         self._state_tracker = StateTracker(agent_id=self.agent_id)
-        self._navigator = Navigator(agent_id=self.agent_id, 
-            action_set=self.action_set, algorithm=Navigator.A_STAR_ALGORITHM)
+        self._navigator = Navigator(agent_id=self.agent_id,
+                                    action_set=self.action_set, algorithm=Navigator.A_STAR_ALGORITHM)
 
     def filter_bw4t_observations(self, state):
         return state
@@ -158,7 +158,7 @@ class GenericAgent(BW4TBrain):
         Returns: None, {}
         """
         # get agent location
-        agent_x, agent_y= state[self.agent_name]['location']
+        agent_x, agent_y = state[self.agent_name]['location']
 
         # create coordinates that we have to visit to search the room
         above_doors = agent_x, agent_y - 2
@@ -186,7 +186,8 @@ class GenericAgent(BW4TBrain):
         self._state_tracker.update(state)
 
         action = self._navigator.get_move_action(self._state_tracker)
-        blocks = [(block['visualization'], block['location'], block['obj_id']) for block in state.values() if 'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']]
+        blocks = [(block['visualization'], block['location'], block['obj_id']) for block in state.values() if
+                  'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']]
 
         # check if any of the found blocks are our goal block
         for block, location, obj_id in blocks:
@@ -194,7 +195,6 @@ class GenericAgent(BW4TBrain):
 
                 if block['colour'] == goal_block["visualization"]["colour"] \
                         and block['shape'] == goal_block["visualization"]["shape"]:
-
                     self._goal_blocks[key]["location"] = location
                     self._goal_blocks[key]["id"] = obj_id
 
@@ -251,7 +251,7 @@ class GenericAgent(BW4TBrain):
             state: state perceived by the agent
         """
         for member in state['World']['team_members']:
-            if member!=self.agent_name and member not in self._teamMembers:
+            if member != self.agent_name and member not in self._teamMembers:
                 self._teamMembers.append(member)
 
         self._goal_blocks = {}
@@ -266,7 +266,7 @@ class GenericAgent(BW4TBrain):
                 "drop_off": state[block_name]['location']
             }
 
-            block_name = f"Collect_Block_{i+1}"
+            block_name = f"Collect_Block_{i + 1}"
 
     def phase_action(self, state):
         msg = None
@@ -326,8 +326,7 @@ class GenericAgent(BW4TBrain):
 
         return res, msg
 
-
-    def decide_on_bw4t_action(self, state:State):
+    def decide_on_bw4t_action(self, state: State):
         if self._goal_blocks is None:
             self.initialize_state(state)
 
@@ -335,14 +334,12 @@ class GenericAgent(BW4TBrain):
         receivedMessages = self._processMessages(self._teamMembers)
         # Update trust beliefs for team members
         self._trustBlief(self._teamMembers, receivedMessages)
-        
+
         res, msg = self.phase_action(state)
 
-        # TODO: change sendMessage
         self._sendMessage(msg)
 
         return res
-
 
     def _sendMessage(self, msg):
         '''
@@ -361,10 +358,14 @@ class GenericAgent(BW4TBrain):
         receivedMessages = {}
         for member in teamMembers:
             receivedMessages[member] = []
-        for mssg in self.received_messages:
+
+        while len(self.received_messages) != 0:
+            msg = self.received_messages.pop(0)
+
             for member in teamMembers:
-                if mssg.from_id == member:
-                    receivedMessages[member].append(mssg.content)       
+                if msg.from_id == member:
+                    content = mb.process_message(msg)           # process message
+                    receivedMessages[member].append(content)
         return receivedMessages
 
     def _trustBlief(self, member, received):
@@ -379,6 +380,6 @@ class GenericAgent(BW4TBrain):
         for member in received.keys():
             for message in received[member]:
                 if 'Found' in message and 'colour' not in message:
-                    trustBeliefs[member]-=0.1
+                    trustBeliefs[member] -= 0.1
                     break
         return trustBeliefs
