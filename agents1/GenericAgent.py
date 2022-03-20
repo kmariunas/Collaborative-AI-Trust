@@ -7,7 +7,7 @@ from matrx.agents.agent_utils.navigator import Navigator
 from matrx.agents.agent_utils.state import State
 from matrx.agents.agent_utils.state_tracker import StateTracker
 
-from agents1.Message import MessageBuilder as mb, MessageType as mt
+from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
 from bw4t.BW4TBrain import BW4TBrain
 
@@ -28,7 +28,7 @@ class GenericAgent(BW4TBrain):
 
     def initialize(self):
         super().initialize()
-        self._mb = mb(self.agent_name)
+        self._mb = MessageBuilder(self.agent_name)
         self._state_tracker = StateTracker(agent_id=self.agent_id)
         self._navigator = Navigator(agent_id=self.agent_id,
                                     action_set=self.action_set, algorithm=Navigator.A_STAR_ALGORITHM)
@@ -348,40 +348,40 @@ class GenericAgent(BW4TBrain):
 
         if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
             res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR, Phase.PLAN_PATH_TO_OPEN_DOOR)
-            msg = self._mb.create_message(mt.MOVE_TO_ROOM, room_name=self._door['room_name'])
+            msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
 
         elif Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
             res = self.follow_path(state, Phase.OPEN_DOOR)
 
         elif Phase.OPEN_DOOR == self._phase:
             res = self.open_door(Phase.PLAN_ROOM_SEARCH)
-            msg = self._mb.create_message(mt.OPEN_DOOR, room_name=self._door['room_name'])
+            msg = self._mb.create_message(MessageType.OPEN_DOOR, room_name=self._door['room_name'])
 
         elif Phase.PLAN_PATH_TO_OPEN_DOOR == self._phase:
             res = self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
-            msg = self._mb.create_message(mt.MOVE_TO_ROOM, room_name=self._door['room_name'])
+            msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
 
         elif Phase.FOLLOW_PATH_TO_OPEN_DOOR == self._phase:
             res = self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
 
         elif Phase.PLAN_ROOM_SEARCH == self._phase:
             res = self.plan_room_search(state, Phase.SEARCH_ROOM)
-            msg = self._mb.create_message(mt.SEARCHING_ROOM, room_name=self._door['room_name'])
+            msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
 
         elif Phase.SEARCH_ROOM == self._phase:
             res = self.search_room(state, Phase.PLAN_PATH_TO_BLOCK)
 
         elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
             res = self.plan_path(self._goal_blocks[self._searching_for]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
-            msg = self._mb.create_message(mt.PICK_UP_BLOCK,
-                                          block_vis=self._goal_blocks[self._searching_for]['visualization'],
-                                          location=self._goal_blocks[self._searching_for]['location'])
 
         elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
             res = self.follow_path(state, Phase.GRAB_BLOCK)
 
         elif Phase.GRAB_BLOCK == self._phase:
             res = self.grab_block(self._goal_blocks[self._searching_for]["id"], Phase.PLAN_PATH_TO_DROP)
+            msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
+                                          block_vis=self._goal_blocks[self._searching_for]['visualization'],
+                                          location=self._goal_blocks[self._searching_for]['location'])
 
         elif Phase.PLAN_PATH_TO_DROP == self._phase:
             res = self.plan_path(self._goal_blocks[self._searching_for]["drop_off"], Phase.RETURN_GOAL_BLOCK)
@@ -391,7 +391,7 @@ class GenericAgent(BW4TBrain):
 
         elif Phase.DROP_BLOCK == self._phase:
             res = self.drop_block(Phase.SEARCH_ROOM)
-            msg = self._mb.create_message(mt.DROP_BLOCK,
+            msg = self._mb.create_message(MessageType.DROP_BLOCK,
                                           block_vis=self._goal_blocks[self._searching_for]["visualization"],
                                           location=self._goal_blocks[self._searching_for]["drop_off"])
 
@@ -414,7 +414,7 @@ class GenericAgent(BW4TBrain):
                     self._goal_blocks[key]['location'] = location
                     self._goal_blocks[key]['id'] = obj_id
 
-                    msg = self._mb.create_message(mt.FOUND_GOAL_BLOCK,
+                    msg = self._mb.create_message(MessageType.FOUND_GOAL_BLOCK,
                                                   block_vis=self._goal_blocks[key]["visualization"],
                                                   location=location)
                     self._sendMessage(msg)
@@ -466,7 +466,7 @@ class GenericAgent(BW4TBrain):
                 if msg.from_id == member:
                     # todo: update goal block location only if its location is closer than the one we have
                     # todo: update only if you trust the agent
-                    content = mb.process_message(msg)           # process message
+                    content = MessageBuilder.process_message(msg)           # process message
                     receivedMessages[member].append(content)
 
         return receivedMessages
