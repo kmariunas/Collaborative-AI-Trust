@@ -414,6 +414,11 @@ class GenericAgent(BW4TBrain):
                     self._goal_blocks[key]['location'] = location
                     self._goal_blocks[key]['id'] = obj_id
 
+                    msg = self._mb.create_message(mt.FOUND_GOAL_BLOCK,
+                                                  block_vis=self._goal_blocks[key]["visualization"],
+                                                  location=location)
+                    self._sendMessage(msg)
+
     def decide_on_bw4t_action(self, state: State):
         if self._goal_blocks is None:
             self.initialize_state(state)
@@ -459,6 +464,8 @@ class GenericAgent(BW4TBrain):
 
             for member in teamMembers:
                 if msg.from_id == member:
+                    # todo: update goal block location only if its location is closer than the one we have
+                    # todo: update only if you trust the agent
                     content = mb.process_message(msg)           # process message
                     receivedMessages[member].append(content)
 
