@@ -189,10 +189,10 @@ class GenericAgent(BW4TBrain):
         for block, location, obj_id in blocks:
             for key, goal_block in self._goal_blocks.items():
 
-                if block['colour'] == goal_block[1] and block['shape'] == goal_block[0]:
+                if block['colour'] == goal_block["colour"] and block['shape'] == goal_block["shape"]:
 
-                    self._goal_blocks[key][2] = location
-                    self._goal_blocks[key][3] = obj_id
+                    self._goal_blocks[key]["location"] = location
+                    self._goal_blocks[key]["id"] = obj_id
 
         if action != None:
             return action, {}
@@ -200,7 +200,7 @@ class GenericAgent(BW4TBrain):
         self._visited_rooms.append(self._door['room_name'])
 
         # if we found a goal block we are searching for, go there
-        if self._goal_blocks[self._searching_for][2] is not None:
+        if self._goal_blocks[self._searching_for]["location"] is not None:
             self._phase = phase
         else:
             self._phase = planb_phase
@@ -234,7 +234,7 @@ class GenericAgent(BW4TBrain):
             Drop Action
         """
         self._phase = phase
-        action = DropObject.__name__, {'object_id': self._goal_blocks[self._searching_for][3]}
+        action = DropObject.__name__, {'object_id': self._goal_blocks[self._searching_for]["id"]}
 
         self._searching_for = f"block{int(self._searching_for[5]) + 1}"
 
@@ -250,11 +250,60 @@ class GenericAgent(BW4TBrain):
             if member!=self.agent_name and member not in self._teamMembers:
                 self._teamMembers.append(member)
 
-        self._goal_blocks = {
-            "block0": [state['Collect_Block']['visualization']['shape'], state['Collect_Block']['visualization']['colour'], None, None, state['Collect_Block']['location']], #shape, colour, location of the block, id, drop_off location
-            "block1": [state['Collect_Block_1']['visualization']['shape'], state['Collect_Block_1']['visualization']['colour'], None, None, state['Collect_Block_1']['location']],
-            "block2": [state['Collect_Block_2']['visualization']['shape'], state['Collect_Block_2']['visualization']['colour'], None, None, state['Collect_Block_2']['location']]
-        }
+        self._goal_blocks = {}
+
+        block_name = "Collect_Block"
+
+        for i in range(0, 3):
+            self._goal_blocks[f"block{i}"] = {
+                "shape": state[block_name]['visualization']['shape'],
+                "colour": state[block_name]['visualization']['colour'],
+                "location": None,
+                "id": None,
+                "drop_off": state[block_name]['location']
+            }
+
+            block_name = f"Collect_Block_{i+1}"
+
+    def phase_action(self, state):
+        if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
+            return self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR, Phase.PLAN_PATH_TO_OPEN_DOOR)
+
+        if Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
+            return self.follow_path(state, Phase.OPEN_DOOR)
+
+        if Phase.OPEN_DOOR == self._phase:
+            return self.open_door(Phase.PLAN_ROOM_SEARCH)
+
+        if Phase.PLAN_PATH_TO_OPEN_DOOR == self._phase:
+            return self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
+
+        if Phase.FOLLOW_PATH_TO_OPEN_DOOR == self._phase:
+            return self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
+
+        if Phase.PLAN_ROOM_SEARCH == self._phase:
+            return self.plan_room_search(state, Phase.SEARCH_ROOM)
+
+        if Phase.SEARCH_ROOM == self._phase:
+            return self.search_room(state, Phase.PLAN_PATH_TO_BLOCK, Phase.PLAN_PATH_TO_CLOSED_DOOR)
+
+        if Phase.PLAN_PATH_TO_BLOCK == self._phase:
+            return self.plan_path(self._goal_blocks[self._searching_for]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
+
+        if Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
+            return self.follow_path(state, Phase.GRAB_BLOCK)
+
+        if Phase.GRAB_BLOCK == self._phase:
+            return self.grab_block(self._goal_blocks[self._searching_for]["id"], Phase.PLAN_PATH_TO_DROP)
+
+        if Phase.PLAN_PATH_TO_DROP == self._phase:
+            self.plan_path(self._goal_blocks[self._searching_for]["drop_off"], Phase.RETURN_GOAL_BLOCK)
+
+        if Phase.RETURN_GOAL_BLOCK == self._phase:
+            return self.follow_path(state, Phase.DROP_BLOCK)
+
+        if Phase.DROP_BLOCK == self._phase:
+            return self.drop_block(Phase.SEARCH_ROOM)
 
     def decide_on_bw4t_action(self, state:State):
         if self._goal_blocks is None:
@@ -265,46 +314,8 @@ class GenericAgent(BW4TBrain):
         # Update trust beliefs for team members
         self._trustBlief(self._teamMembers, receivedMessages)
         
-        while True:
-            print(self._phase)
-            if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
-                return self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR, Phase.PLAN_PATH_TO_OPEN_DOOR)
+        return self.phase_action(state)
 
-            if Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
-                return self.follow_path(state, Phase.OPEN_DOOR)
-
-            if Phase.OPEN_DOOR == self._phase:
-                return self.open_door(Phase.PLAN_ROOM_SEARCH)
-
-            if Phase.PLAN_PATH_TO_OPEN_DOOR==self._phase:
-                return self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
-
-            if Phase.FOLLOW_PATH_TO_OPEN_DOOR==self._phase:
-                return self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
-
-            if Phase.PLAN_ROOM_SEARCH==self._phase:
-                return self.plan_room_search(state, Phase.SEARCH_ROOM)
-
-            if Phase.SEARCH_ROOM==self._phase:
-                return self.search_room(state, Phase.PLAN_PATH_TO_BLOCK, Phase.PLAN_PATH_TO_CLOSED_DOOR)
-
-            if Phase.PLAN_PATH_TO_BLOCK==self._phase:
-                return self.plan_path(self._goal_blocks[self._searching_for][2], Phase.FOLLOW_PATH_TO_BLOCK)
-
-            if Phase.FOLLOW_PATH_TO_BLOCK==self._phase:
-                return self.follow_path(state, Phase.GRAB_BLOCK)
-
-            if Phase.GRAB_BLOCK==self._phase:
-                return self.grab_block(self._goal_blocks[self._searching_for][3], Phase.PLAN_PATH_TO_DROP)
-
-            if Phase.PLAN_PATH_TO_DROP==self._phase:
-                self.plan_path(self._goal_blocks[self._searching_for][4],Phase.RETURN_GOAL_BLOCK)
-
-            if Phase.RETURN_GOAL_BLOCK==self._phase:
-                return self.follow_path(state, Phase.DROP_BLOCK)
-
-            if Phase.DROP_BLOCK==self._phase:
-                return self.drop_block(Phase.SEARCH_ROOM)
 
     def _sendMessage(self, mssg, sender):
         '''
