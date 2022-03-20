@@ -47,6 +47,26 @@ def extract_room(content):
     return room_name[0]
 
 
+def block_vis_str(block_vis):
+    """
+    Method takes in block visualization and returns the correct string representation.
+    """
+    res = '{' \
+          + '"size": ' + str(block_vis['size']) + ", " \
+          + '"shape": ' + str(block_vis['shape']) + ", " \
+          + '"colour": "' + block_vis['colour'] + "\"" \
+          + '}'
+    return res
+
+
+def location_str(location):
+    """
+    Method takes in location and returns the correct string representation.
+    """
+    res = '(' + f'{location[0]}, {location[1]})'
+    return res
+
+
 class MessageBuilder:
     """
     Class for sending and reading messages following the communication protocol mentioned in the assignment. To
@@ -73,8 +93,8 @@ class MessageBuilder:
         @return: matrx Message.
         """
 
-        block_vis = MessageBuilder._block_vis_str(block_vis)
-        location = MessageBuilder._location_str(location)
+        block_vis = block_vis_str(block_vis)
+        location = location_str(location)
 
         # STANDARD MESSAGES
         if mt is MessageType.OPEN_DOOR:
@@ -98,26 +118,6 @@ class MessageBuilder:
             raise ValueError("not implemented")
 
         return Message(content=msg, from_id=self.agent_name)
-
-    @staticmethod
-    def _block_vis_str(block_vis):
-        """
-        Method takes in block visualization and returns the correct string representation.
-        """
-        res = '{' \
-              + '"size": ' + str(block_vis['size']) + ", " \
-              + '"shape": ' + str(block_vis['shape']) + ", " \
-              + '"colour": "' + block_vis['colour'] + "\"" \
-              + '}'
-        return res
-
-    @staticmethod
-    def _location_str(location):
-        """
-        Method takes in location and returns the correct string representation.
-        """
-        res = '(' + f'{location[0]}, {location[1]})'
-        return res
 
     @staticmethod
     def process_message(msg):
