@@ -18,6 +18,7 @@ class GenericAgent(BW4TBrain):
         super().__init__(settings)
         self.agent_name = None
         self._phase = phase
+        self._grid_shape = None
         self._teamMembers = []
         self._visited_rooms = set()
         self._com_visited_rooms = set() # not updated rn
@@ -341,6 +342,8 @@ class GenericAgent(BW4TBrain):
             }
 
             block_name = f"Collect_Block_{i + 1}"
+
+        self._grid_shape = state['World']['grid_shape']
 
     def phase_action(self, state):
         msg = None
