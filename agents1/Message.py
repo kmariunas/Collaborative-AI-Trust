@@ -51,10 +51,12 @@ def block_vis_str(block_vis):
     """
     Method takes in block visualization and returns the correct string representation.
     """
+    if block_vis is None:
+        return None
     res = '{' \
-          + '"size": ' + str(block_vis['size']) + ", " \
-          + '"shape": ' + str(block_vis['shape']) + ", " \
-          + '"colour": "' + block_vis['colour'] + "\"" \
+          + '"size": ' + str(block_vis["size"]) + ", " \
+          + '"shape": ' + str(block_vis["shape"]) + ", " \
+          + '"colour": "' + block_vis["colour"] + "\"" \
           + '}'
     return res
 
@@ -63,6 +65,9 @@ def location_str(location):
     """
     Method takes in location and returns the correct string representation.
     """
+    if location is None:
+        return None
+
     res = '(' + f'{location[0]}, {location[1]})'
     return res
 

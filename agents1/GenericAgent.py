@@ -9,6 +9,7 @@ from matrx.actions.door_actions import OpenDoorAction
 from matrx.actions.object_actions import GrabObject, DropObject
 from matrx.messages.message import Message
 from agents1.Phase import Phase
+from agents1.Message import MessageBuilder as mb, MessageType as mt
 
 class GenericAgent(BW4TBrain):
 
@@ -20,9 +21,11 @@ class GenericAgent(BW4TBrain):
         self._visited_rooms = []
         self._goal_blocks = None
         self._searching_for = "block0"
+        self._mb = None                 # message builder
 
     def initialize(self):
         super().initialize()
+        self._mb = mb(self.agent_name)
         self._state_tracker = StateTracker(agent_id=self.agent_id)
         self._navigator = Navigator(agent_id=self.agent_id, 
             action_set=self.action_set, algorithm=Navigator.A_STAR_ALGORITHM)
@@ -189,7 +192,8 @@ class GenericAgent(BW4TBrain):
         for block, location, obj_id in blocks:
             for key, goal_block in self._goal_blocks.items():
 
-                if block['colour'] == goal_block["colour"] and block['shape'] == goal_block["shape"]:
+                if block['colour'] == goal_block["visualization"]["colour"] \
+                        and block['shape'] == goal_block["visualization"]["shape"]:
 
                     self._goal_blocks[key]["location"] = location
                     self._goal_blocks[key]["id"] = obj_id
@@ -256,8 +260,7 @@ class GenericAgent(BW4TBrain):
 
         for i in range(0, 3):
             self._goal_blocks[f"block{i}"] = {
-                "shape": state[block_name]['visualization']['shape'],
-                "colour": state[block_name]['visualization']['colour'],
+                "visualization": state[block_name]['visualization'],
                 "location": None,
                 "id": None,
                 "drop_off": state[block_name]['location']
@@ -266,44 +269,63 @@ class GenericAgent(BW4TBrain):
             block_name = f"Collect_Block_{i+1}"
 
     def phase_action(self, state):
+        msg = None
+        res = None
+
         if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
-            return self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR, Phase.PLAN_PATH_TO_OPEN_DOOR)
+            res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR, Phase.PLAN_PATH_TO_OPEN_DOOR)
+            msg = self._mb.create_message(mt.MOVE_TO_ROOM, room_name=self._door['room_name'])
 
-        if Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
-            return self.follow_path(state, Phase.OPEN_DOOR)
+        elif Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
+            res = self.follow_path(state, Phase.OPEN_DOOR)
 
-        if Phase.OPEN_DOOR == self._phase:
-            return self.open_door(Phase.PLAN_ROOM_SEARCH)
+        elif Phase.OPEN_DOOR == self._phase:
+            res = self.open_door(Phase.PLAN_ROOM_SEARCH)
+            msg = self._mb.create_message(mt.OPEN_DOOR, room_name=self._door['room_name'])
 
-        if Phase.PLAN_PATH_TO_OPEN_DOOR == self._phase:
-            return self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
+        elif Phase.PLAN_PATH_TO_OPEN_DOOR == self._phase:
+            res = self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
+            msg = self._mb.create_message(mt.MOVE_TO_ROOM, room_name=self._door['room_name'])
 
-        if Phase.FOLLOW_PATH_TO_OPEN_DOOR == self._phase:
-            return self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
+        elif Phase.FOLLOW_PATH_TO_OPEN_DOOR == self._phase:
+            res = self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
 
-        if Phase.PLAN_ROOM_SEARCH == self._phase:
-            return self.plan_room_search(state, Phase.SEARCH_ROOM)
+        elif Phase.PLAN_ROOM_SEARCH == self._phase:
+            res = self.plan_room_search(state, Phase.SEARCH_ROOM)
+            msg = self._mb.create_message(mt.SEARCHING_ROOM, room_name=self._door['room_name'])
 
-        if Phase.SEARCH_ROOM == self._phase:
-            return self.search_room(state, Phase.PLAN_PATH_TO_BLOCK, Phase.PLAN_PATH_TO_CLOSED_DOOR)
+        elif Phase.SEARCH_ROOM == self._phase:
+            res = self.search_room(state, Phase.PLAN_PATH_TO_BLOCK, Phase.PLAN_PATH_TO_CLOSED_DOOR)
 
-        if Phase.PLAN_PATH_TO_BLOCK == self._phase:
-            return self.plan_path(self._goal_blocks[self._searching_for]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
+        elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
+            res = self.plan_path(self._goal_blocks[self._searching_for]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
+            msg = self._mb.create_message(mt.PICK_UP_BLOCK,
+                                          block_vis=self._goal_blocks[self._searching_for]['visualization'],
+                                          location=self._goal_blocks[self._searching_for]['location'])
 
-        if Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
-            return self.follow_path(state, Phase.GRAB_BLOCK)
+        elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
+            res = self.follow_path(state, Phase.GRAB_BLOCK)
 
-        if Phase.GRAB_BLOCK == self._phase:
-            return self.grab_block(self._goal_blocks[self._searching_for]["id"], Phase.PLAN_PATH_TO_DROP)
+        elif Phase.GRAB_BLOCK == self._phase:
+            res = self.grab_block(self._goal_blocks[self._searching_for]["id"], Phase.PLAN_PATH_TO_DROP)
 
-        if Phase.PLAN_PATH_TO_DROP == self._phase:
-            self.plan_path(self._goal_blocks[self._searching_for]["drop_off"], Phase.RETURN_GOAL_BLOCK)
+        elif Phase.PLAN_PATH_TO_DROP == self._phase:
+            res = self.plan_path(self._goal_blocks[self._searching_for]["drop_off"], Phase.RETURN_GOAL_BLOCK)
 
-        if Phase.RETURN_GOAL_BLOCK == self._phase:
-            return self.follow_path(state, Phase.DROP_BLOCK)
+        elif Phase.RETURN_GOAL_BLOCK == self._phase:
+            res = self.follow_path(state, Phase.DROP_BLOCK)
 
-        if Phase.DROP_BLOCK == self._phase:
-            return self.drop_block(Phase.SEARCH_ROOM)
+        elif Phase.DROP_BLOCK == self._phase:
+            res = self.drop_block(Phase.SEARCH_ROOM)
+            msg = self._mb.create_message(mt.DROP_BLOCK,
+                                          block_vis=self._goal_blocks[self._searching_for]["visualization"],
+                                          location=self._goal_blocks[self._searching_for]["drop_off"])
+
+        else:
+            raise Exception('phase might be None')
+
+        return res, msg
+
 
     def decide_on_bw4t_action(self, state:State):
         if self._goal_blocks is None:
@@ -314,14 +336,21 @@ class GenericAgent(BW4TBrain):
         # Update trust beliefs for team members
         self._trustBlief(self._teamMembers, receivedMessages)
         
-        return self.phase_action(state)
+        res, msg = self.phase_action(state)
+
+        # TODO: change sendMessage
+        self._sendMessage(msg)
+
+        return res
 
 
-    def _sendMessage(self, mssg, sender):
+    def _sendMessage(self, msg):
         '''
         Enable sending messages in one line of code
         '''
-        msg = Message(content=mssg, from_id=sender)
+        if msg is None:
+            return
+
         if msg.content not in self.received_messages:
             self.send_message(msg)
 
