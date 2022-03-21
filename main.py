@@ -1,3 +1,4 @@
+from agents1.GenericAgent import GenericAgent
 from bw4t.BW4TWorld import BW4TWorld
 from bw4t.statistics import Statistics
 from agents1.BW4TBaselineAgent import BaseLineAgent
@@ -12,8 +13,9 @@ press the start button in god mode to start the session.
 
 if __name__ == "__main__":
     agents = [
-        {'name':'agent1', 'botclass':BaseLineAgent, 'settings':{}}, # 'slowdown':10
-        {'name':'liar', 'botclass':LiarAgent, 'settings':{}},
+        {'name':'agent1', 'botclass':GenericAgent, 'settings':{}}, # 'slowdown':10
+        {'name':'agent2', 'botclass':BaseLineAgent, 'settings':{}},
+        {'name': 'agent3', 'botclass': BaseLineAgent, 'settings': {}},
         {'name':'human', 'botclass':Human, 'settings':{}}
         ]
 
