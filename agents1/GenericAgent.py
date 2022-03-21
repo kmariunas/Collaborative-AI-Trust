@@ -471,6 +471,9 @@ class GenericAgent(BW4TBrain):
                             or msg['type'] is MessageType.OPEN_DOOR:
                         self._com_visited_rooms.add(msg['room_name'])
 
+                    elif msg['type'] is MessageType.DROP_BLOCK:
+                        self.drop_block(None)
+
                     receivedMessages[member].append(msg)
 
         return receivedMessages
