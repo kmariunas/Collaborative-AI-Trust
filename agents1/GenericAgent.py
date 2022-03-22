@@ -147,13 +147,12 @@ class GenericAgent(BW4TBrain):
             return [door for door in doors
                     if not door['is_open']]
 
-    def plan_path_to_closed_door(self, state, phase, planb_phase: Phase):
+    def plan_path_to_closed_door(self, state, phase):
         """ Finds doors that are still closed and plans a path to them
 
         Args:
             state: perceived state by the agent
             phase: Next phase after successfuly finding closed door
-            planb_phase: Next phase if no closed doors found
 
         Returns:
             None, {}
@@ -161,7 +160,7 @@ class GenericAgent(BW4TBrain):
         closed_doors = self.find_doors(state, open=False, filter=self._filter)
 
         if len(closed_doors) == 0:
-            self._phase = planb_phase
+            self._phase = None
             return None, {}
 
         door_idx = self.closest_point_idx(state[self.agent_name]['location'], list(map(lambda x: x["location"], closed_doors)))
@@ -347,7 +346,7 @@ class GenericAgent(BW4TBrain):
         res = None
 
         if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
-            res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR, Phase.PLAN_PATH_TO_OPEN_DOOR)
+            res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
             msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
 
         elif Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
@@ -358,7 +357,7 @@ class GenericAgent(BW4TBrain):
             msg = self._mb.create_message(MessageType.OPEN_DOOR, room_name=self._door['room_name'])
 
         elif Phase.PLAN_PATH_TO_OPEN_DOOR == self._phase:
-            res = self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
+            res = self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR, None)
             msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
 
         elif Phase.FOLLOW_PATH_TO_OPEN_DOOR == self._phase:
@@ -369,7 +368,7 @@ class GenericAgent(BW4TBrain):
             msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
 
         elif Phase.SEARCH_ROOM == self._phase:
-            res = self.search_room(state, Phase.PLAN_PATH_TO_BLOCK)
+            res = self.search_room(state, None)
 
         elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
             res = self.plan_path(self._goal_blocks[self._searching_for]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
@@ -378,7 +377,7 @@ class GenericAgent(BW4TBrain):
             res = self.follow_path(state, Phase.GRAB_BLOCK)
 
         elif Phase.GRAB_BLOCK == self._phase:
-            res = self.grab_block(self._goal_blocks[self._searching_for]["id"], Phase.PLAN_PATH_TO_DROP)
+            res = self.grab_block(self._goal_blocks[self._searching_for]["id"], None)
             msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
                                           block_vis=self._goal_blocks[self._searching_for]['visualization'],
                                           location=self._goal_blocks[self._searching_for]['location'])
@@ -390,7 +389,7 @@ class GenericAgent(BW4TBrain):
             res = self.follow_path(state, Phase.DROP_BLOCK)
 
         elif Phase.DROP_BLOCK == self._phase:
-            res = self.drop_block(Phase.SEARCH_ROOM)
+            res = self.drop_block(None)
             msg = self._mb.create_message(MessageType.DROP_BLOCK,
                                           block_vis=self._goal_blocks[self._searching_for]["visualization"],
                                           location=self._goal_blocks[self._searching_for]["drop_off"])
