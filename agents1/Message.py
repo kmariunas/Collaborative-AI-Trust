@@ -56,7 +56,7 @@ def block_vis_str(block_vis):
     res = '{' \
           + '"size": ' + str(block_vis["size"]) + ", " \
           + '"shape": ' + str(block_vis["shape"]) + ", " \
-          + '"colour": "' + block_vis["colour"] + "\"" \
+          + '"colour": "' + str(block_vis["colour"]) + "\"" \
           + '}'
     return res
 
