@@ -205,8 +205,6 @@ class GenericAgent(BW4TBrain):
             self._phase = planb_phase
             return None, {}
 
-        # Randomly pick a open door
-        # TODO: look for closest doors?
         door_idx = self.closest_point_idx(state[self.agent_name]['location'], list(map(lambda x: x["location"], open_doors)))
         self._door = open_doors[door_idx]
         doorLoc = self._door['location']
@@ -238,7 +236,7 @@ class GenericAgent(BW4TBrain):
 
         return self.plan_path([above_doors, right, left_left], phase)
 
-    def search_room(self, state, phase):
+    def search_room(self, state):
         """ Looks for any blocks in radius of the agent, if blocks match any goal block, records it's location and id.
             After each search agent moves to the waypoint given by @plan_room_search.
 
@@ -262,12 +260,7 @@ class GenericAgent(BW4TBrain):
             return action, {}
 
         self._visited_rooms.add(self._door['room_name'])
-
-        # if we found a goal block we are searching for, go there
-        if self._goal_blocks[self._searching_for]["location"] is not None:
-            self._phase = phase
-        else:
-            self._phase = None
+        self._phase = None
 
         return None, {}
 
@@ -357,7 +350,7 @@ class GenericAgent(BW4TBrain):
             msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
 
         elif Phase.SEARCH_ROOM == self._phase:
-            res = self.search_room(state, Phase.PLAN_PATH_TO_BLOCK)
+            res = self.search_room(state)
 
         elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
             res = self.plan_path(self._goal_blocks[self._searching_for]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
