@@ -258,18 +258,6 @@ class GenericAgent(BW4TBrain):
 
         action = self._navigator.get_move_action(self._state_tracker)
 
-        blocks = [(block['visualization'], block['location'], block['obj_id']) for block in state.values() if
-                  'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']]
-
-        # check if any of the found blocks are our goal block
-        for block, location, obj_id in blocks:
-            for key, goal_block in self._goal_blocks.items():
-
-                if block['colour'] == goal_block["visualization"]["colour"] \
-                        and block['shape'] == goal_block["visualization"]["shape"]:
-                    self._goal_blocks[key]["location"] = location
-                    self._goal_blocks[key]["id"] = obj_id
-
         if action != None:
             return action, {}
 
@@ -414,7 +402,7 @@ class GenericAgent(BW4TBrain):
                     self._goal_blocks[key]['location'] = location
                     self._goal_blocks[key]['id'] = obj_id
 
-                    msg = self._mb.create_message(MessageType.FOUND_GOAL_BLOCK,
+                    msg = self._mb.create_message(MessageType.FOUND_GOAL_BLOCK, # TODO: change to potential color block
                                                   block_vis=self._goal_blocks[key]["visualization"],
                                                   location=location)
                     self._sendMessage(msg)
