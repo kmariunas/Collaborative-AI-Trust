@@ -52,7 +52,7 @@ class LiarAgent(GenericAgent):
             goal_block_colours = list(map(lambda block: block['visualization']['colour'], self._goal_blocks.values()))
             goal_block_colours.remove(content['visualization']['colour'])
 
-            if goal_block_shapes is not None:
+            if goal_block_colours is not None:
                 content['visualization']['colour'] = random.choice(goal_block_colours)
 
         if 'location' in keys:
