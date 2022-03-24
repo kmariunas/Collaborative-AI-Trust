@@ -12,21 +12,42 @@ from agents1.Phase import Phase
 from bw4t.BW4TBrain import BW4TBrain
 
 
+def manhattan_distance(point, location):
+    return abs(point[0] - location[0]) + abs(point[1] - location[1])
+
+
+def closest_point_idx(point, list_of_points):
+    # manhattan distance
+    min_distance = sys.maxsize
+    closest_idx = None
+
+    for idx, location in enumerate(list_of_points):
+        distance = manhattan_distance(point, location)
+
+        if distance < min_distance:
+            min_distance = distance
+            closest_idx = idx
+
+    return closest_idx
+
+
 class GenericAgent(BW4TBrain):
 
-    def __init__(self, settings: Dict[str, object], phase: Phase):
+    def __init__(self, settings: Dict[str, object], phase: Phase = None):
         super().__init__(settings)
+        self._messages = set()
         self._door = None
         self.agent_name = None
         self._phase = phase
         self._teamMembers = []
         self._visited_rooms = set()
-        self._com_visited_rooms = set() # not updated rn
+        self._com_visited_rooms = set()  # not updated rn
         self._goal_blocks = None
         self._filter = 'agent'
         self._searching_for = "block0"
         self._mb = None  # message builder
         self._previous_phase = None
+        self._is_carrying = set()
 
     def initialize(self):
         super().initialize()
@@ -37,20 +58,6 @@ class GenericAgent(BW4TBrain):
 
     def filter_bw4t_observations(self, state):
         return state
-
-    def closest_point_idx(self, point, list_of_points):
-        # manhattan distance
-        min_distance = sys.maxsize
-        closest_idx = None
-
-        for idx, location in enumerate(list_of_points):
-            distance = abs(point[0] - location[0]) + abs(point[1] - location[1])
-
-            if distance < min_distance:
-                min_distance = distance
-                closest_idx = idx
-
-        return closest_idx
 
     def follow_path(self, state, phase):
         """ Moves the agent towards the destination set in the navigator
@@ -97,6 +104,10 @@ class GenericAgent(BW4TBrain):
         #   1. if goal block has been located, start going in its direction
         #   2. if there are any closed doors, open them and search the rooms
         #   3. start searching through open rooms
+
+        # if you're carrying a block that has been delivered already, drop that block
+        if len(self._is_carrying) != 0 and self._searching_for not in self._is_carrying:
+            return Phase.DROP_BLOCK
 
         # check if a goal block has been located
         if self._goal_blocks[self._searching_for]['location']:
@@ -165,7 +176,8 @@ class GenericAgent(BW4TBrain):
             self.update_phase(None)
             return None, {}
 
-        door_idx = self.closest_point_idx(state[self.agent_name]['location'], list(map(lambda x: x["location"], closed_doors)))
+        door_idx = closest_point_idx(state[self.agent_name]['location'],
+                                     list(map(lambda x: x["location"], closed_doors)))
         self._door = closed_doors[door_idx]
         doorLoc = self._door['location']
         # Location in front of door is south from door
@@ -206,7 +218,7 @@ class GenericAgent(BW4TBrain):
             return None, {}
 
         # look for closest door
-        door_idx = self.closest_point_idx(state[self.agent_name]['location'], list(map(lambda x: x["location"], open_doors)))
+        door_idx = closest_point_idx(state[self.agent_name]['location'], list(map(lambda x: x["location"], open_doors)))
 
         self._door = open_doors[door_idx]
         doorLoc = self._door['location']
@@ -281,9 +293,12 @@ class GenericAgent(BW4TBrain):
         """
         self.update_phase(phase)
 
+        block = [key for key, block in self._goal_blocks.items() if block['id'] == obj_id]
+        self._is_carrying.add(block[0])
+
         return GrabObject.__name__, {'object_id': obj_id}
 
-    def drop_block(self, phase):
+    def drop_block(self, phase, block_delivered=1):
         """ Drops the block under the agent.
 
         Args:
@@ -293,14 +308,15 @@ class GenericAgent(BW4TBrain):
             updates the searching_for variable which indicates which goal block the agent is looking for
 
         Returns:
-            Drop Action
+            Drop Actionf
         """
         self.update_phase(phase)
         action = DropObject.__name__, {'object_id': self._goal_blocks[self._searching_for]["id"]}
 
-        block_num = min(2, int(self._searching_for[5]) + 1)
-
-        self._searching_for = f"block{block_num}"
+        if block_delivered == 1:
+            self._is_carrying.discard(self._searching_for)
+            block_num = min(2, int(self._searching_for[5]) + 1)
+            self._searching_for = f"block{block_num}"
 
         return action
 
@@ -330,7 +346,6 @@ class GenericAgent(BW4TBrain):
 
     def phase_action(self, state):
         msg = None
-        res = None
 
         if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
             res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
@@ -376,10 +391,14 @@ class GenericAgent(BW4TBrain):
             res = self.follow_path(state, Phase.DROP_BLOCK)
 
         elif Phase.DROP_BLOCK == self._phase:
-            res = self.drop_block(None)
-            msg = self._mb.create_message(MessageType.DROP_BLOCK,
-                                          block_vis=self._goal_blocks[self._searching_for]["visualization"],
-                                          location=self._goal_blocks[self._searching_for]["drop_off"])
+            if state[self.agent_name]['location'] == self._goal_blocks[self._searching_for]['drop_off']:
+                msg = self._mb.create_message(MessageType.DROP_BLOCK,
+                                              block_vis=self._goal_blocks[self._searching_for]["visualization"],
+                                              location=self._goal_blocks[self._searching_for]["drop_off"])
+                res = self.drop_block(None)
+            else:
+                res = self.drop_block(None)
+
 
         else:
             raise Exception('phase might be None')
@@ -397,8 +416,7 @@ class GenericAgent(BW4TBrain):
                 if block['colour'] == goal_block['visualization']['colour'] \
                         and block['shape'] == goal_block['visualization']['shape'] \
                         and block['size'] == goal_block['visualization']['size']:
-                    self._goal_blocks[key]['location'] = location
-                    self._goal_blocks[key]['id'] = obj_id
+                    self.update_goal_block(key, location, obj_id)
 
                     msg = self._mb.create_message(MessageType.FOUND_GOAL_BLOCK,
                                                   block_vis=self._goal_blocks[key]["visualization"],
@@ -434,8 +452,10 @@ class GenericAgent(BW4TBrain):
         if msg is None:
             return
 
-        if msg.content not in self.received_messages:
+        if msg.content not in self._messages:
             self.send_message(msg)
+            self._messages.add(msg.content)
+            print(msg.content)
 
     def _processMessages(self, teamMembers):
         """
@@ -447,13 +467,32 @@ class GenericAgent(BW4TBrain):
 
         while len(self.received_messages) != 0:
             msg = self.received_messages.pop(0)
+            self._messages.add(msg)
+            msg = MessageBuilder.process_message(msg)
 
             for member in teamMembers:
-                if msg.from_id == member:
-                    # todo: update goal block location only if its location is closer than the one we have
+                if msg['from_id'] == member:
+                    # TODO: now, the agent assumes all messages can be trusted
                     # todo: update only if you trust the agent
-                    content = MessageBuilder.process_message(msg)           # process message
-                    receivedMessages[member].append(content)
+                    # update goal block location
+                    if msg['type'] is MessageType.FOUND_GOAL_BLOCK:
+                        # find the goal block
+                        for key, goal_block in self._goal_blocks.items():
+                            if goal_block['visualization']['shape'] == msg['visualization']['shape'] \
+                                    and goal_block['visualization']['size'] == msg['visualization']['size'] \
+                                    and goal_block['visualization']['colour'] == msg['visualization']['colour']:
+                                self.update_goal_block(key, goal_block['location'], None)
+
+                    elif msg['type'] is MessageType.MOVE_TO_ROOM \
+                            or msg['type'] is MessageType.SEARCHING_ROOM \
+                            or msg['type'] is MessageType.OPEN_DOOR:
+                        self._com_visited_rooms.add(msg['room_name'])
+
+                    elif msg['type'] is MessageType.DROP_BLOCK:
+                        # self.drop_block(None, block_delivered=1)
+                        self._phase = Phase.DROP_BLOCK
+
+                    receivedMessages[member].append(msg)
 
         return receivedMessages
 
@@ -476,3 +515,19 @@ class GenericAgent(BW4TBrain):
     def update_phase(self, phase):
         self._previous_phase = self._phase
         self._phase = phase
+
+    def update_goal_block(self, block_key, new_block_location, new_block_id):
+        old_block = self._goal_blocks[block_key]
+
+        # if no other instance of this goal block was found before
+        if old_block['location'] is None:
+            # update location and id
+            self._goal_blocks[block_key]["location"] = new_block_location
+            self._goal_blocks[block_key]["id"] = new_block_id
+            return
+
+        # only update if this block's distance to the drop position is smaller the old distance
+        drop_loc = old_block["drop_off"]
+        if manhattan_distance(new_block_location, drop_loc) <= manhattan_distance(old_block["location"], drop_loc):
+            self._goal_blocks[block_key]["location"] = new_block_location
+            self._goal_blocks[block_key]["id"] = new_block_id
