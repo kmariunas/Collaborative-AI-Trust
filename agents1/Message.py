@@ -34,8 +34,10 @@ def extract_location(content):
     """
     loc = re.findall("\(.*\)", content)  # find location
     loc = loc[0]
+
     location = (int(loc[1: loc.find(',')]),
-                int(loc[loc.find(',') + 2: loc.find(')')]))  # parse string to list
+                int(loc[loc.find(',') + 2: loc.find(')')]))  # parse string to tuple
+
     return location
 
 
