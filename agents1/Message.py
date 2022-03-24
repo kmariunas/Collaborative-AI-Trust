@@ -61,6 +61,7 @@ def block_vis_str(block_vis):
     """
     if block_vis is None:
         return None
+
     res = '{' \
           + '"size": ' + str(block_vis["size"]) + ", " \
           + '"shape": ' + str(block_vis["shape"]) + ", " \
