@@ -18,8 +18,6 @@ class StrongAgent(GenericAgent):
         self._is_carrying = set()
 
     def find_action(self, state: State):
-        # TODO: coms
-
         # check if the next goal_block has been located
         next_block_id = min(int(self._searching_for[5]) + 1, 2)  # increment current block
         searching_next = f"block{next_block_id}"
@@ -125,10 +123,6 @@ class StrongAgent(GenericAgent):
         self._is_carrying.add(blocks[0])
 
         return GrabObject.__name__, {'object_id': obj_id}
-
-    def drop_block(self, phase):
-        self._is_carrying.remove(self._searching_for)
-        return super().drop_block(phase)
 
     def plan_path_to_closed_door(self, state, phase):
         """ Finds doors that are still closed and plans a path to them
