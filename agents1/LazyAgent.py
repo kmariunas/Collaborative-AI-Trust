@@ -49,7 +49,7 @@ class LazyAgent(GenericAgent):
         if self.abandon_action(abandon_this_step_prob=0.3):
             # drop block if agent is carrying one
             if self._phase is Phase.RETURN_GOAL_BLOCK:
-                return self.drop_block(None, block_delivered=0)
+                return self.drop_block(None, block_delivered=False)
             self.update_phase(None)
             return None, {}
 
@@ -60,16 +60,16 @@ class LazyAgent(GenericAgent):
     def find_action(self, state):
         """
         Method returns an action, different from the previous one, based on the following ranking:
-            1. if you're carrying a goal block that has already been delivered, drop the block
+            # 1. if you're carrying a goal block that has already been delivered, drop the block
             1. if goal block has been located, start going in its direction
             2. if there are any closed doors that no one has explored, explore them
             3. if there are any closed doors that the agent has not explored, explore them
             4. if there are any rooms that the agent has not explored, explore them
             5. explore random room
         """
-        # if you're carrying a block that has been delivered already, drop that block
-        if len(self._is_carrying) != 0 and self._searching_for not in self._is_carrying:
-            return Phase.DROP_BLOCK
+        # # if you're carrying a block that has been delivered already, drop that block
+        # if len(self._is_carrying) != 0 and self._searching_for not in self._is_carrying:
+        #     return Phase.DROP_BLOCK
 
         # check if a goal block has been located
         # make sure that agent does not repeat the same action
