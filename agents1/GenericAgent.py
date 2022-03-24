@@ -105,11 +105,6 @@ class GenericAgent(BW4TBrain):
         #   1. if goal block has been located, start going in its direction
         #   2. if there are any closed doors, open them and search the rooms
         #   3. start searching through open rooms
-
-        # # if you're carrying a block that has been delivered already, drop that block
-        # if len(self._is_carrying) != 0 and self._searching_for not in self._is_carrying:
-        #     return Phase.DROP_BLOCK
-
         # check if a goal block has been located
         if self._goal_blocks[self._searching_for]['location']:
             return Phase.PLAN_PATH_TO_BLOCK
@@ -378,7 +373,7 @@ class GenericAgent(BW4TBrain):
             msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
 
         elif Phase.SEARCH_ROOM == self._phase:
-            res = self.search_room(state, Phase.PLAN_PATH_TO_BLOCK)
+            res = self.search_room(state, None)
 
         elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
             res = self.plan_path(self._goal_blocks[self._searching_for]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
@@ -387,7 +382,7 @@ class GenericAgent(BW4TBrain):
             res = self.follow_path(state, Phase.GRAB_BLOCK)
 
         elif Phase.GRAB_BLOCK == self._phase:
-            res = self.grab_block(self._goal_blocks[self._searching_for]["id"], Phase.PLAN_PATH_TO_DROP)
+            res = self.grab_block(self._goal_blocks[self._searching_for]["id"], None)
             msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
                                           block_vis=self._goal_blocks[self._searching_for]['visualization'],
                                           location=self._goal_blocks[self._searching_for]['location'])

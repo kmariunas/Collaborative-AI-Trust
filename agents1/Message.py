@@ -82,7 +82,6 @@ class MessageBuilder:
     Implemented custom messages:
     * FOUND_BLOCK: "Found block [block_vis] at location [location]"
     """
-
     def __init__(self, agent_name):
         self.agent_name = agent_name
 
@@ -101,7 +100,6 @@ class MessageBuilder:
 
         block_vis = block_vis_str(block_vis)
         location = location_str(location)
-
         # STANDARD MESSAGES
         if mt is MessageType.OPEN_DOOR:
             msg = "Opening door of " + room_name
