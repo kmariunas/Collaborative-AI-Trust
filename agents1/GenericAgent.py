@@ -136,6 +136,10 @@ class GenericAgent(BW4TBrain):
 
     def find_doors(self, state, open=True, filter='none'):
         """
+        Method returns list of doors filtered with the passed params.
+
+        @param state
+        @param open: True to return open doors, False otherwise
         @param filter: filter for the rooms. Values: 'none', 'agent', 'everyone'.
                 * 'none': no filter
                 * 'agent': only rooms that the agent has not visited
@@ -303,6 +307,7 @@ class GenericAgent(BW4TBrain):
 
         Args:
             phase: Next phase after dropping the block
+            block_delivered: whether the block was delivered to the drop-off location
 
         Note:
             updates the searching_for variable which indicates which goal block the agent is looking for
@@ -398,7 +403,6 @@ class GenericAgent(BW4TBrain):
                 res = self.drop_block(None)
             else:
                 res = self.drop_block(None)
-
 
         else:
             raise Exception('phase might be None')

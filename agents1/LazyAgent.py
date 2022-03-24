@@ -1,8 +1,6 @@
 import random
 from typing import Dict
 
-from matrx.actions import DropObject
-
 from agents1.GenericAgent import GenericAgent
 from agents1.Phase import Phase
 
@@ -58,31 +56,6 @@ class LazyAgent(GenericAgent):
         action, _ = super().follow_path(state, phase)
 
         return action, _
-
-    # def drop_block(self, phase, block_delivered=1):
-    #     """ Drops the block under the agent.
-    #     This method is also used to drop a block even if it is not delivered to the goal location.
-    #
-    #     Args:
-    #         phase: Next phase after dropping the block
-    #         block_delivered: specifies whether the block has been delivered to the drop zone
-    #             ie: 1 = True
-    #                 0 = False
-    #
-    #     Note:
-    #         updates the searching_for variable which indicates which goal block the agent is looking for
-    #
-    #     Returns:
-    #         Drop Action
-    #     """
-    #     self.update_phase(phase)
-    #     action = DropObject.__name__, {'object_id': self._goal_blocks[self._searching_for]["id"]}
-    #
-    #     block_num = min(2, int(self._searching_for[5]) + block_delivered)
-    #
-    #     self._searching_for = f"block{block_num}"
-    #
-    #     return action
 
     def find_action(self, state):
         """
