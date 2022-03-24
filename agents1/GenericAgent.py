@@ -352,6 +352,8 @@ class GenericAgent(BW4TBrain):
 
             block_name = f"Collect_Block_{i + 1}"
 
+        self._sendMessage(self._mb.create_message(MessageType.GOAL_BLOCKS, goal_blocks=self._goal_blocks))
+
     def phase_action(self, state):
         msg = None
 
@@ -456,6 +458,7 @@ class GenericAgent(BW4TBrain):
             return
 
         if msg.content not in self._messages:
+            print(self.agent_name, msg.content)
             self.send_message(msg)
             self._messages.add(msg.content)
 
