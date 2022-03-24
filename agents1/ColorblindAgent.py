@@ -1,4 +1,3 @@
-
 from typing import Dict
 from agents1.GenericAgent import GenericAgent
 from agents1.Phase import Phase
@@ -17,6 +16,14 @@ class ColorblindAgent(GenericAgent):
             goal_block["visualization"]["colour"] = None
 
     def filter_observations(self, state):
+        """ Sets the colors of the goal blocks to None
+
+        Args:
+            state: global state
+
+        Returns:
+            filtered state
+        """
         for block in state.values():
             if 'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']:
                 block['visualization']['colour'] = None
@@ -42,6 +49,8 @@ class ColorblindAgent(GenericAgent):
     def _processMessages(self, teamMembers):
         """
         Process incoming messages and create a dictionary with received messages from each team member.
+        If a message with a goal block visualization is received, update the colour of the goal blocks that this agent
+        stores.
         """
         receivedMessages = {}
         for member in teamMembers:
