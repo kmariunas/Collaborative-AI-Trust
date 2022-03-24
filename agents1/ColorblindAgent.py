@@ -19,7 +19,6 @@ class ColorblindAgent(GenericAgent):
         block_name = "Collect_Block"
 
         for i in range(0, 3):
-            print(state[block_name])
             self._goal_blocks[f"block{i}"] = {
                 "visualization": state[block_name]['visualization'],
                 "location": None,
