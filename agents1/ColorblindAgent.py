@@ -10,7 +10,24 @@ class ColorblindAgent(GenericAgent):
 
 
     def initialize_state(self, state):
-        super().initialize_state(state)
+        for member in state['World']['team_members']:
+            if member != self.agent_name and member not in self._teamMembers:
+                self._teamMembers.append(member)
+
+        self._goal_blocks = {}
+
+        block_name = "Collect_Block"
+
+        for i in range(0, 3):
+            print(state[block_name])
+            self._goal_blocks[f"block{i}"] = {
+                "visualization": state[block_name]['visualization'],
+                "location": None,
+                "id": None,
+                "drop_off": state[block_name]['location']
+            }
+
+            block_name = f"Collect_Block_{i + 1}"
 
         for goal_block in self._goal_blocks.values():
             goal_block["visualization"]["colour"] = None
@@ -49,8 +66,6 @@ class ColorblindAgent(GenericAgent):
     def _processMessages(self, teamMembers):
         """
         Process incoming messages and create a dictionary with received messages from each team member.
-        If a message with a goal block visualization is received, update the colour of the goal blocks that this agent
-        stores.
         """
         receivedMessages = {}
         for member in teamMembers:
@@ -58,30 +73,32 @@ class ColorblindAgent(GenericAgent):
 
         while len(self.received_messages) != 0:
             msg = self.received_messages.pop(0)
+            self._messages.add(msg)
             msg = MessageBuilder.process_message(msg)
 
             for member in teamMembers:
                 if msg['from_id'] == member:
                     # TODO: now, the agent assumes all messages can be trusted
                     # todo: update only if you trust the agent
+                    if msg['type'] is MessageType.GOAL_BLOCKS:
+                        self._goal_blocks = msg["goal_blocks"]
                     # update goal block location
-                    if msg['type'] is MessageType.FOUND_GOAL_BLOCK:
+                    elif msg['type'] is MessageType.FOUND_GOAL_BLOCK:
                         # find the goal block
                         for key, goal_block in self._goal_blocks.items():
-                            if goal_block["visualization"]["shape"] == msg['visualization']["shape"]\
-                                    and goal_block["visualization"]["size"] == msg['visualization']["size"]:
-                                self.update_goal_block(key, msg['location'], None)
-
-                                if self._goal_blocks[key]["visualization"]["colour"] is None:
-                                    self._goal_blocks[key]["visualization"]["colour"] = msg["visualization"]["colour"]
+                            if goal_block['visualization']['shape'] == msg['visualization']['shape'] \
+                                    and goal_block['visualization']['size'] == msg['visualization']['size'] \
+                                    and goal_block['visualization']['colour'] == msg['visualization']['colour']:
+                                self.update_goal_block(key, goal_block['location'], goal_block['id'])
 
                     elif msg['type'] is MessageType.MOVE_TO_ROOM \
                             or msg['type'] is MessageType.SEARCHING_ROOM \
                             or msg['type'] is MessageType.OPEN_DOOR:
                         self._com_visited_rooms.add(msg['room_name'])
 
-                    elif msg['type'] is MessageType.DROP_BLOCK:
-                        self.drop_block(None)
+                    elif msg['type'] is MessageType.DROP_BLOCK \
+                            and msg['location'] == self._goal_blocks[self._searching_for]['drop_off']:
+                        self._phase = Phase.DROP_BLOCK
 
                     receivedMessages[member].append(msg)
 
