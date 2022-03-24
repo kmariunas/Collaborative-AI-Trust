@@ -9,14 +9,20 @@ class MessageType(enum.Enum):
     """
     Enum for implemented message types
     """
-    MOVE_TO_ROOM = 0,
-    OPEN_DOOR = 1,
-    SEARCHING_ROOM = 2,
-    FOUND_BLOCK = 3,
+    GOAL_BLOCKS = 0,
+    MOVE_TO_ROOM = 1,
+    OPEN_DOOR = 2,
+    SEARCHING_ROOM = 3,
+    FOUND_BLOCK = 4,
     PICK_UP_BLOCK = 5,
-    FOUND_GOAL_BLOCK = 4,
-    DROP_BLOCK = 6
+    FOUND_GOAL_BLOCK = 6,
+    DROP_BLOCK = 7
 
+def extract_goal_blocks(content):
+    vis = re.findall("{.*}", content)  # find block visualization
+
+    vis = json.loads(vis[0])  # cast string to dict
+    return vis
 
 def extract_block_vis(content):
     """
@@ -87,7 +93,7 @@ class MessageBuilder:
     def __init__(self, agent_name):
         self.agent_name = agent_name
 
-    def create_message(self, mt, room_name=None, block_vis=None, location=None):
+    def create_message(self, mt, room_name=None, block_vis=None, location=None, goal_blocks = None):
         """
         Method returns a matrx Message object with a string content built with the passed parameters
 
@@ -99,7 +105,6 @@ class MessageBuilder:
 
         @return: matrx Message.
         """
-
         block_vis = block_vis_str(block_vis)
         location = location_str(location)
 
@@ -120,9 +125,11 @@ class MessageBuilder:
         # NOT STANDARD MESSAGES
         elif mt is MessageType.FOUND_BLOCK:
             msg = "Found block " + block_vis + " at location " + location
+        elif mt is MessageType.GOAL_BLOCKS:
+            msg = "Goal blocks " + json.dumps(goal_blocks)
 
         else:
-            raise ValueError("not implemented")
+            raise ValueError(f"not implemented: {mt}")
 
         return Message(content=msg, from_id=self.agent_name)
 
@@ -170,5 +177,8 @@ class MessageBuilder:
             res['type'] = MessageType.FOUND_BLOCK
             res['visualization'] = extract_block_vis(content)
             res['location'] = extract_location(content)
+        if content.startswith("Goal blocks "):
+            res['type'] = MessageType.GOAL_BLOCKS
+            res['goal_blocks'] = extract_goal_blocks(content)
 
         return res
