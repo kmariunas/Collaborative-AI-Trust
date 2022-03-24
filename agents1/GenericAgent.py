@@ -1,3 +1,4 @@
+import random
 import sys
 from typing import Dict
 
@@ -38,6 +39,7 @@ class GenericAgent(BW4TBrain):
         self._door = None
         self.agent_name = None
         self._phase = phase
+        self._first_tick = True
         self._teamMembers = []
         self._visited_rooms = set()
         self._com_visited_rooms = set()  # not updated rn
@@ -54,7 +56,7 @@ class GenericAgent(BW4TBrain):
         self._navigator = Navigator(agent_id=self.agent_id,
                                     action_set=self.action_set, algorithm=Navigator.A_STAR_ALGORITHM)
 
-    def filter_bw4t_observations(self, state):
+    def filter_observations(self, state):
         return state
 
     def follow_path(self, state, phase):
@@ -170,9 +172,14 @@ class GenericAgent(BW4TBrain):
             self.update_phase(None)
             return None, {}
 
-        door_idx = closest_point_idx(state[self.agent_name]['location'],
-                                     list(map(lambda x: x["location"], closed_doors)))
-        self._door = closed_doors[door_idx]
+        if self._first_tick:
+            self._door = random.choice(closed_doors)
+            self._first_tick = False
+        else:
+            door_idx = closest_point_idx(state[self.agent_name]['location'],
+                                         list(map(lambda x: x["location"], closed_doors)))
+            self._door = closed_doors[door_idx]
+
         doorLoc = self._door['location']
         # Location in front of door is south from door
         doorLoc = doorLoc[0], doorLoc[1] + 1
@@ -401,8 +408,7 @@ class GenericAgent(BW4TBrain):
                         and block['size'] == goal_block['visualization']['size']:
                     # todo
                     self.update_goal_block(key, location, obj_id)
-
-                    msg = self._mb.create_message(MessageType.FOUND_GOAL_BLOCK, # TODO: change to potential color block
+                    msg = self._mb.create_message(MessageType.FOUND_GOAL_BLOCK,
                                                   block_vis=self._goal_blocks[key]["visualization"],
                                                   location=location)
                     self._sendMessage(msg)
