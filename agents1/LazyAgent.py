@@ -157,7 +157,5 @@ class LazyAgent(GenericAgent):
             if random.uniform(0, 1) < abandon_this_step_prob:
                 # stop following path
                 self._finish_action = None
-                print("--- abandon action ---")
-
                 return True
         return False

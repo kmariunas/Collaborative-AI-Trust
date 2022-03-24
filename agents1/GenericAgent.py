@@ -459,7 +459,6 @@ class GenericAgent(BW4TBrain):
         if msg.content not in self._messages:
             self.send_message(msg)
             self._messages.add(msg.content)
-            print(msg.content)
 
     def _processMessages(self, teamMembers):
         """
