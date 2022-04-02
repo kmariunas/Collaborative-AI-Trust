@@ -76,7 +76,7 @@ class StrongAgent(GenericAgentTesting):
         res, msg = None, None
         location = self._searching_for["location"]
         if self._fix_block_order:
-            print("hello")
+            #print("hello")
 
             if Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
                 res = self.follow_path(state, Phase.GRAB_BLOCK)
@@ -90,8 +90,8 @@ class StrongAgent(GenericAgentTesting):
                 #self._block_to_fix_id = id
                 res = self.plan_path(self._goal_blocks[block]["drop_off"],Phase.FOLLOW_PATH_TO_BLOCK)
         elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
-            print("location")
-            print(location)
+            #print("location")
+            #print(location)
             res = self.plan_path(location, Phase.FOLLOW_PATH_TO_BLOCK)
 
         elif Phase.GRAB_BLOCK == self._phase:

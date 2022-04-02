@@ -119,9 +119,9 @@ class GenericAgentTesting(BW4TBrain):
         #   2. if there are any closed doors, open them and search the rooms
         #   3. start searching through open rooms
         # check if a goal block has been located
-        for block in self._not_found_yet:
-            if len(self._goal_blocks[block]['location']) != 0:
-                return Phase.PLAN_PATH_TO_BLOCK
+        #for block in self._not_found_yet:
+        #    if len(self._goal_blocks[block]['location']) != 0:
+        #        return Phase.PLAN_PATH_TO_BLOCK
 
         # find closed door that none of the agents searched
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
@@ -309,12 +309,11 @@ class GenericAgentTesting(BW4TBrain):
         """
 
         self.update_phase(phase)
-        #find id of block that agent needs to grab
         blocks_id = [block['obj_id'] for block in state.values() if
                      'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']
                      and block['is_collectable'] and block['location'] == state[self.agent_name]['location']]
-        #block = [key for key, block in self._goal_blocks.items()d if block['id'] == obj_id]
         self._is_carrying.add((self._searching_for["block"], blocks_id[0]))
+
         self._not_found_yet.discard(self._searching_for["block"])
 
         return GrabObject.__name__, {'object_id': blocks_id[0]}
@@ -333,21 +332,16 @@ class GenericAgentTesting(BW4TBrain):
             Drop Action
         """
         self.update_phase(phase)
-        print(self._phase)
 
 
         if block_delivered:
-            print(self._phase)
             block, id = self._is_carrying.pop()
 
-            print(block)
-            print(self.agent_name)
+
             action = DropObject.__name__, {'object_id': id}
             if len(self._not_found_yet)==0:
                 self._fix_block_order = True
 
-            #block_num = min(2, int(self._searching_for[5]) + 1)
-            #self._searching_for = f"block{block_num}"
 
 
         return action
@@ -459,8 +453,8 @@ class GenericAgentTesting(BW4TBrain):
             msg = self._mb.create_message(MessageType.DROP_BLOCK,
                                           block_vis=self._searching_for["visualization"],
                                           location=state[self.agent_name]['location'])
-            print(self.agent_name)
-            print(self._is_carrying)
+
+
             res = self.drop_block(None)
 
         else:
@@ -505,7 +499,8 @@ class GenericAgentTesting(BW4TBrain):
         res, msg = self.phase_action(state)
 
         self._sendMessage(msg)
-
+        if(res == None):
+            pass
         return res
 
     def _sendMessage(self, msg):
@@ -554,8 +549,13 @@ class GenericAgentTesting(BW4TBrain):
                         self._com_visited_rooms.add(msg['room_name'])
 
                     elif msg['type'] is MessageType.DROP_BLOCK \
-                            and msg['location'] == self._searching_for['drop_off']:
-                        self._phase = Phase.DROP_BLOCK
+                            and len(self._is_carrying) == 1:
+                        block, id = list(self._is_carrying)[0]
+                        if msg['location'] == self._goal_blocks[block]['drop_off']:
+
+                            self._phase = Phase.DROP_BLOCK
+
+                        #self._phase = Phase.DROP_BLOCK
 
                     receivedMessages[member].append(msg)
 
