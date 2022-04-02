@@ -63,6 +63,8 @@ class GenericAgentTesting(BW4TBrain):
         self._blocks_to_fix.put("block1")
         self._blocks_to_fix.put("block2")
 
+        self._grid_shape = None
+
     def initialize(self):
         super().initialize()
         self._mb = MessageBuilder(self.agent_name)
@@ -331,17 +333,17 @@ class GenericAgentTesting(BW4TBrain):
         Returns:
             Drop Action
         """
-        self.update_phase(phase)
 
+        block, id = self._is_carrying.pop()
 
+        action = DropObject.__name__, {'object_id': id}
         if block_delivered:
-            block, id = self._is_carrying.pop()
-
-
-            action = DropObject.__name__, {'object_id': id}
+            self.update_phase(phase)
             if len(self._not_found_yet)==0:
                 self._fix_block_order = True
-
+        else:
+            self.update_phase(None)
+            self._not_found_yet.add(block)
 
 
         return action
@@ -377,6 +379,8 @@ class GenericAgentTesting(BW4TBrain):
             }
             block_name = f"Collect_Block_{i + 1}"
 
+            self._sendMessage(self._mb.create_message(MessageType.GOAL_BLOCKS, goal_blocks=self._goal_blocks))
+            self._grid_shape = state['World']['grid_shape']
     def phase_action(self, state):
         msg = None
         res = None
@@ -388,7 +392,7 @@ class GenericAgentTesting(BW4TBrain):
                 blocks_id = [block['obj_id'] for block in state.values() if
                           'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']
                           and block['is_collectable'] and block['location'] == state[self.agent_name]['location']]
-                res = self.grab_block(blocks_id[0],Phase.DROP_BLOCK)
+                res = self.grab_block(Phase.DROP_BLOCK, state)
             elif Phase.DROP_BLOCK == self._phase:
                 res = self.drop_block(Phase.PLAN_PATH_TO_BLOCK)
             else:

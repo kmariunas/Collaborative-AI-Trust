@@ -1,3 +1,4 @@
+import random
 import sys
 from typing import Dict
 
@@ -39,6 +40,8 @@ class GenericAgent(BW4TBrain):
         self._door = None
         self.agent_name = None
         self._phase = phase
+        self._first_tick = True
+        self._grid_shape = None
         self._teamMembers = []
         self._visited_rooms = set()
         self._com_visited_rooms = set()  # not updated rn
@@ -57,7 +60,7 @@ class GenericAgent(BW4TBrain):
         self._navigator = Navigator(agent_id=self.agent_id,
                                     action_set=self.action_set, algorithm=Navigator.A_STAR_ALGORITHM)
 
-    def filter_bw4t_observations(self, state):
+    def filter_observations(self, state):
         return state
 
     def follow_path(self, state, phase):
@@ -176,9 +179,14 @@ class GenericAgent(BW4TBrain):
             self.update_phase(None)
             return None, {}
 
-        door_idx = closest_point_idx(state[self.agent_name]['location'],
-                                     list(map(lambda x: x["location"], closed_doors)))
-        self._door = closed_doors[door_idx]
+        if self._first_tick:
+            self._door = random.choice(closed_doors)
+            self._first_tick = False
+        else:
+            door_idx = closest_point_idx(state[self.agent_name]['location'],
+                                         list(map(lambda x: x["location"], closed_doors)))
+            self._door = closed_doors[door_idx]
+
         doorLoc = self._door['location']
         # Location in front of door is south from door
         doorLoc = doorLoc[0], doorLoc[1] + 1
@@ -250,9 +258,9 @@ class GenericAgent(BW4TBrain):
 
         return self.plan_path([above_doors, right, left_left], phase)
 
-    def search_room(self, state, phase):
-        """ After each search agent moves to the waypoint given by @plan_room_search.
-
+    def search_room(self, state):
+        """ Looks for any blocks in radius of the agent, if blocks match any goal block, records it's location and id.
+            After each search agent moves to the waypoint given by @plan_room_search.
         Args:
             state: matrx state perceived by the agent.
             phase: Next phase if the goal block is found in the room
@@ -273,11 +281,7 @@ class GenericAgent(BW4TBrain):
 
         self._visited_rooms.add(self._door['room_name'])
 
-        # if we found a goal block we are searching for, go there
-        if self._goal_blocks[self._searching_for]["location"] is not None:
-            self.update_phase(phase)
-        else:
-            self.update_phase(None)
+        self.update_phase(None)
 
         return None, {}
 
@@ -344,6 +348,9 @@ class GenericAgent(BW4TBrain):
             }
 
             block_name = f"Collect_Block_{i + 1}"
+
+        self._sendMessage(self._mb.create_message(MessageType.GOAL_BLOCKS, goal_blocks=self._goal_blocks))
+        self._grid_shape = state['World']['grid_shape']
 
     def phase_action(self, state):
         msg = None
@@ -414,7 +421,6 @@ class GenericAgent(BW4TBrain):
                         and block['shape'] == goal_block['visualization']['shape'] \
                         and block['size'] == goal_block['visualization']['size']:
                     self.update_goal_block(key, location, obj_id)
-
                     msg = self._mb.create_message(MessageType.FOUND_GOAL_BLOCK,
                                                   block_vis=self._goal_blocks[key]["visualization"],
                                                   location=location)

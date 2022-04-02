@@ -2,10 +2,11 @@ import random
 from typing import Dict
 
 from agents1.GenericAgent import GenericAgent
+from agents1.GenericAgentTesting import GenericAgentTesting
 from agents1.Phase import Phase
 
 
-class LazyAgent(GenericAgent):
+class LazyAgent(GenericAgentTesting):
 
     def __init__(self, settings: Dict[str, object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
@@ -26,7 +27,9 @@ class LazyAgent(GenericAgent):
 
         """
         if self.abandon_action(abandon_this_step_prob=0.6):
+
             self.update_phase(None)
+
             return None, {}
 
         action, _ = super().search_room(state, phase)
@@ -73,9 +76,16 @@ class LazyAgent(GenericAgent):
 
         # check if a goal block has been located
         # make sure that agent does not repeat the same action
-        if self._goal_blocks[self._searching_for]["location"] is not None \
-                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK \
-                and self._previous_phase is not Phase.GRAB_BLOCK:
+        if len(self._is_carrying)==1:
+            return Phase.PLAN_PATH_TO_DROP
+        found_goal_blocks = 0
+        for block in self._not_found_yet:
+            if(len(self._goal_blocks[block]['location'])!=0):
+                found_goal_blocks +=1
+
+        if found_goal_blocks != 0 and len(self._is_carrying) == 0:
+            # pick it up if you're not carrying anything already
+            self.find_best_path(state)
             return Phase.PLAN_PATH_TO_BLOCK
 
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
