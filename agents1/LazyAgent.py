@@ -11,7 +11,7 @@ class LazyAgent(GenericAgent):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
         self._finish_action = None
 
-    def search_room(self, state, phase):
+    def search_room(self, state):
         """ After each search agent moves to the waypoint given by @plan_room_search.
 
         Args:
@@ -29,7 +29,7 @@ class LazyAgent(GenericAgent):
             self.update_phase(None)
             return None, {}
 
-        action, _ = super().search_room(state, phase)
+        action, _ = super().search_room(state)
 
         if action is None:
             self._finish_action = None

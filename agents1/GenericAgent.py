@@ -10,6 +10,7 @@ from matrx.agents.agent_utils.state_tracker import StateTracker
 
 from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
+from agents1.TrustSystem import TrustSystem
 from bw4t.BW4TBrain import BW4TBrain
 
 
@@ -51,6 +52,7 @@ class GenericAgent(BW4TBrain):
         self._mb = None  # message builder
         self._previous_phase = None
         self._is_carrying = set()
+        self.trust_system = None
 
     def initialize(self):
         super().initialize()
@@ -262,7 +264,6 @@ class GenericAgent(BW4TBrain):
             After each search agent moves to the waypoint given by @plan_room_search.
         Args:
             state: matrx state perceived by the agent.
-            phase: Next phase if the goal block is found in the room
 
         Note:
             Once the agent searches the entire room, if it has found a block it is looking for, it will set the phase
@@ -324,6 +325,9 @@ class GenericAgent(BW4TBrain):
 
         return action
 
+    def initialize_trust_system(self):
+        self.trust_system = TrustSystem(self.agent_name, self._teamMembers, self._goal_blocks.values())
+
     def initialize_state(self, state):
         """ Initialize team members and read goal blocks
 
@@ -347,6 +351,8 @@ class GenericAgent(BW4TBrain):
             }
 
             block_name = f"Collect_Block_{i + 1}"
+
+        self.initialize_trust_system()
 
         self._sendMessage(self._mb.create_message(MessageType.GOAL_BLOCKS, goal_blocks=self._goal_blocks))
         self._grid_shape = state['World']['grid_shape']
@@ -377,7 +383,7 @@ class GenericAgent(BW4TBrain):
             msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
 
         elif Phase.SEARCH_ROOM == self._phase:
-            res = self.search_room(state, None)
+            res = self.search_room(state)
 
         elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
             res = self.plan_path(self._goal_blocks[self._searching_for]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
@@ -386,7 +392,7 @@ class GenericAgent(BW4TBrain):
             res = self.follow_path(state, Phase.GRAB_BLOCK)
 
         elif Phase.GRAB_BLOCK == self._phase:
-            res = self.grab_block(self._goal_blocks[self._searching_for]["id"], None)
+            res = self.grab_block(self._goal_blocks[self._searching_for]["id"], Phase.PLAN_PATH_TO_DROP)
             msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
                                           block_vis=self._goal_blocks[self._searching_for]['visualization'],
                                           location=self._goal_blocks[self._searching_for]['location'])
@@ -431,13 +437,14 @@ class GenericAgent(BW4TBrain):
 
         self.check_surroundings_for_box(state)
 
-        # Process messages from team members
-        receivedMessages = self._processMessages(self._teamMembers)
+        # parse messages from team members
+        received_messages = self._parse_messages()
         # Update trust beliefs for team members
-        self._trustBlief(self._teamMembers, receivedMessages)
+        self.trust_system.update(received_messages, state['World']['nr_ticks'])
+        # select action based on received messages
+        self._processMessages(received_messages)
 
         # if action has not been selected already, select a task to work on
-        # TODO: select action based on messages from other agents, and on weight
         if self._phase is None:
             self.update_phase(self.find_action(state))
 
@@ -458,12 +465,12 @@ class GenericAgent(BW4TBrain):
             self.send_message(msg)
             self._messages.add(msg.content)
 
-    def _processMessages(self, teamMembers):
+    def _parse_messages(self):
         """
-        Process incoming messages and create a dictionary with received messages from each team member.
+        Parses incoming messages and create a dictionary with received messages from each team member.
         """
         receivedMessages = {}
-        for member in teamMembers:
+        for member in self._teamMembers:
             receivedMessages[member] = []
 
         while len(self.received_messages) != 0:
@@ -471,11 +478,20 @@ class GenericAgent(BW4TBrain):
             self._messages.add(msg)
             msg = MessageBuilder.process_message(msg)
 
-            for member in teamMembers:
+            for member in self._teamMembers:
                 if msg['from_id'] == member:
-                    # TODO: now, the agent assumes all messages can be trusted
-                    # todo: update only if you trust the agent
-                    # update goal block location
+                    receivedMessages[member].append(msg)
+
+        return receivedMessages
+
+    def _processMessages(self, received_messages):
+        """
+        Process incoming messages.
+        """
+
+        for messages in received_messages.values():
+            for msg in messages:
+                if self.trust_system.trust_message(msg):
                     if msg['type'] is MessageType.FOUND_GOAL_BLOCK:
                         # find the goal block
                         for key, goal_block in self._goal_blocks.items():
@@ -493,25 +509,56 @@ class GenericAgent(BW4TBrain):
                             and msg['location'] == self._goal_blocks[self._searching_for]['drop_off']:
                         self._phase = Phase.DROP_BLOCK
 
-                    receivedMessages[member].append(msg)
+        # receivedMessages = {}
+        # for member in teamMembers:
+        #     receivedMessages[member] = []
+        #
+        # while len(self.received_messages) != 0:
+        #     msg = self.received_messages.pop(0)
+        #     self._messages.add(msg)
+        #     msg = MessageBuilder.process_message(msg)
+        #
+        #     for member in teamMembers:
+        #         if msg['from_id'] == member:
+        #             # TODO: now, the agent assumes all messages can be trusted
+        #             # todo: update only if you trust the agent
+        #             # update goal block location
+        #             if msg['type'] is MessageType.FOUND_GOAL_BLOCK:
+        #                 # find the goal block
+        #                 for key, goal_block in self._goal_blocks.items():
+        #                     if goal_block['visualization']['shape'] == msg['visualization']['shape'] \
+        #                             and goal_block['visualization']['size'] == msg['visualization']['size'] \
+        #                             and goal_block['visualization']['colour'] == msg['visualization']['colour']:
+        #                         self.update_goal_block(key, goal_block['location'], goal_block['id'])
+        #
+        #             elif msg['type'] is MessageType.MOVE_TO_ROOM \
+        #                     or msg['type'] is MessageType.SEARCHING_ROOM \
+        #                     or msg['type'] is MessageType.OPEN_DOOR:
+        #                 self._com_visited_rooms.add(msg['room_name'])
+        #
+        #             elif msg['type'] is MessageType.DROP_BLOCK \
+        #                     and msg['location'] == self._goal_blocks[self._searching_for]['drop_off']:
+        #                 self._phase = Phase.DROP_BLOCK
+        #
+        #             receivedMessages[member].append(msg)
+        #
+        # return receivedMessages
 
-        return receivedMessages
-
-    def _trustBlief(self, member, received):
-        """
-        Baseline implementation of a trust belief. Creates a dictionary with trust belief scores for each team member, for example based on the received messages.
-        """
-        # You can change the default value to your preference
-        default = 0.5
-        trustBeliefs = {}
-        for member in received.keys():
-            trustBeliefs[member] = default
-        for member in received.keys():
-            for message in received[member]:
-                if 'Found' in message and 'colour' not in message:
-                    trustBeliefs[member] -= 0.1
-                    break
-        return trustBeliefs
+    # def _trustBlief(self, member, received):
+    #     """
+    #     Baseline implementation of a trust belief. Creates a dictionary with trust belief scores for each team member, for example based on the received messages.
+    #     """
+    #     # You can change the default value to your preference
+    #     default = 0.5
+    #     trustBeliefs = {}
+    #     for member in received.keys():
+    #         trustBeliefs[member] = default
+    #     for member in received.keys():
+    #         for message in received[member]:
+    #             if 'Found' in message and 'colour' not in message:
+    #                 trustBeliefs[member] -= 0.1
+    #                 break
+    #     return trustBeliefs
 
     def update_phase(self, phase):
         self._previous_phase = self._phase

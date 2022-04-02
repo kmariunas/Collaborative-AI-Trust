@@ -3,30 +3,14 @@ from agents1.GenericAgent import GenericAgent
 from agents1.Phase import Phase
 from agents1.Message import MessageType, MessageBuilder
 
+
 class ColorblindAgent(GenericAgent):
 
-    def __init__(self, settings:Dict[str,object]):
+    def __init__(self, settings: Dict[str, object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
 
-
     def initialize_state(self, state):
-        for member in state['World']['team_members']:
-            if member != self.agent_name and member not in self._teamMembers:
-                self._teamMembers.append(member)
-
-        self._goal_blocks = {}
-
-        block_name = "Collect_Block"
-
-        for i in range(0, 3):
-            self._goal_blocks[f"block{i}"] = {
-                "visualization": state[block_name]['visualization'],
-                "location": None,
-                "id": None,
-                "drop_off": state[block_name]['location']
-            }
-
-            block_name = f"Collect_Block_{i + 1}"
+        super().initialize_state(state)
 
         for goal_block in self._goal_blocks.values():
             goal_block["visualization"]["colour"] = None
@@ -56,7 +40,6 @@ class ColorblindAgent(GenericAgent):
 
                 if block['shape'] == goal_block['visualization']['shape'] \
                         and block['size'] == goal_block['visualization']['size']:
-
                     msg = self._mb.create_message(MessageType.FOUND_BLOCK,
                                                   block_vis=block,
                                                   location=location)
