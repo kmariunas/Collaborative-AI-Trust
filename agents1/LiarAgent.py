@@ -1,10 +1,14 @@
 import random
 from typing import Dict
+
+from matrx.agents.agent_utils.state import State
+
 from agents1.GenericAgent import GenericAgent
+from agents1.GenericAgentTesting import GenericAgentTesting
 from agents1.Message import MessageBuilder
 from agents1.Phase import Phase
 
-class LiarAgent(GenericAgent):
+class LiarAgent(GenericAgentTesting):
     # TODO: do agents share all of the observations, or can we choose what to share? | technically yes, but then colorblind anmd liar could not solve the problem
     # TODO: Are room sizes fixed? | layout the same, (map size, room size)
     # TODO: do we have to implement the filter_bw4t_observations? No, just set the attribute to None
@@ -33,7 +37,7 @@ class LiarAgent(GenericAgent):
         Returns:
             Message
         """
-        
+
         content = MessageBuilder.process_message(message)
         keys = list(content.keys())
 
@@ -75,6 +79,51 @@ class LiarAgent(GenericAgent):
             return self.send_message(self.lie_message(msg))
 
         return self.send_message(msg)
+
+    def find_action(self, state: State):
+        # check if the next goal_block has been located
+        #next_block_id = min(int(self._searching_for[5]) + 1, 2)  # increment current block
+        #searching_next = f"block{next_block_id}"
+        if len(self._is_carrying)==1:
+            return Phase.PLAN_PATH_TO_DROP
+
+        found_goal_blocks = 0
+        for block in self._not_found_yet:
+            if(len(self._goal_blocks[block]['location'])!=0):
+                found_goal_blocks +=1
+
+        if found_goal_blocks != 0 and len(self._is_carrying) == 0:
+            # pick it up if you're not carrying anything already
+            self.find_best_path(state)
+            return Phase.PLAN_PATH_TO_BLOCK
+
+
+
+
+        # if agent is carrying other block, deliver it
+
+
+
+        # find closed door that none of the agents searched
+        if len(self.find_doors(state, open=False, filter='everyone')) != 0:
+            self._filter = 'everyone'
+            return Phase.PLAN_PATH_TO_CLOSED_DOOR
+
+        # find closed doors that the agent has not searched
+        if len(self.find_doors(state, open=False, filter='agent')) != 0:
+            self._filter = 'agent'
+            return Phase.PLAN_PATH_TO_CLOSED_DOOR
+
+        # find open door that the agent has not searched
+        if len(self.find_doors(state, open=True, filter='agent')) != 0:
+            self._filter = 'agent'
+            return Phase.PLAN_PATH_TO_OPEN_DOOR
+
+        # find random open door
+        # TODO: could replace with an 'explore' action
+        if len(self.find_doors(state, open=True, filter='none')) != 0:
+            self._filter = 'none'
+            return Phase.PLAN_PATH_TO_OPEN_DOOR
 
 
 

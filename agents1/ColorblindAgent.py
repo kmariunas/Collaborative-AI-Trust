@@ -33,10 +33,8 @@ class ColorblindAgent(GenericAgent):
 
     def filter_observations(self, state):
         """ Sets the colors of the goal blocks to None
-
         Args:
             state: global state
-
         Returns:
             filtered state
         """
