@@ -1,7 +1,6 @@
 import random
 from typing import Dict
 
-from agents1.GenericAgent import GenericAgent
 from agents1.GenericAgentTesting import GenericAgentTesting
 from agents1.Phase import Phase
 
@@ -27,9 +26,8 @@ class LazyAgent(GenericAgentTesting):
 
         """
         if self.abandon_action(abandon_this_step_prob=0.6):
-
+            print('--- abandon ---')
             self.update_phase(None)
-
             return None, {}
 
         action, _ = super().search_room(state, phase)
@@ -50,6 +48,7 @@ class LazyAgent(GenericAgentTesting):
         Returns: action towards the destination, or None if the agent has already arrived
         """
         if self.abandon_action(abandon_this_step_prob=0.3):
+            print('--- abandon ---')
             # drop block if agent is carrying one
             if self._phase is Phase.RETURN_GOAL_BLOCK:
                 return self.drop_block(None, block_delivered=False)
@@ -76,17 +75,19 @@ class LazyAgent(GenericAgentTesting):
 
         # check if a goal block has been located
         # make sure that agent does not repeat the same action
-        if len(self._is_carrying)==1 and self._previous_phase is not Phase.RETURN_GOAL_BLOCK\
-                and self._previous_phase is not Phase.GRAB_BLOCK:
+        if len(self._is_carrying) == 1:
             return Phase.PLAN_PATH_TO_DROP
 
         found_goal_blocks = 0
 
         for block in self._not_found_yet:
             if len(self._goal_blocks[block]['location']) != 0:
-                found_goal_blocks +=1
+                found_goal_blocks += 1
 
-        if found_goal_blocks != 0 and len(self._is_carrying) == 0:
+        if found_goal_blocks != 0 and len(self._is_carrying) == 0 \
+                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK \
+                and self._previous_phase is not Phase.GRAB_BLOCK \
+                and self._previous_phase is not Phase.PLAN_PATH_TO_BLOCK:
             # pick it up if you're not carrying anything already
             self.find_best_path(state)
             return Phase.PLAN_PATH_TO_BLOCK
@@ -102,6 +103,8 @@ class LazyAgent(GenericAgentTesting):
         if len(self.find_doors(state, open=True, filter='agent')) != 0:
             self._filter = 'agent'
 
+        else:
+            self._filter = 'none'
         return Phase.PLAN_PATH_TO_OPEN_DOOR
 
     def plan_path_to_closed_door(self, state, phase):
@@ -116,10 +119,6 @@ class LazyAgent(GenericAgentTesting):
                     None, {}
                 """
         closed_doors = self.find_doors(state, open=False, filter=self._filter)
-
-        # if len(closed_doors) == 0:
-        #     self._phase = None
-        #     return None, {}
 
         self._door = random.choice(closed_doors)
         doorLoc = self._door['location']
@@ -161,7 +160,7 @@ class LazyAgent(GenericAgentTesting):
         @return bool: True if agent should abandon action, False otherwise
         """
         if self._finish_action is None:
-            if random.uniform(0, 1) < 0.5:
+            if random.uniform(0, 1) < 0.2:
                 self._finish_action = True
             else:
                 self._finish_action = False

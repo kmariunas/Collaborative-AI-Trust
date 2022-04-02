@@ -9,16 +9,43 @@ from agents1.Message import MessageBuilder
 from agents1.Phase import Phase
 
 class LiarAgent(GenericAgentTesting):
-    # TODO: do agents share all of the observations, or can we choose what to share? | technically yes, but then colorblind anmd liar could not solve the problem
-    # TODO: Are room sizes fixed? | layout the same, (map size, room size)
-    # TODO: do we have to implement the filter_bw4t_observations? No, just set the attribute to None
-    # TODO: where should we get the goal blocks, can I get them from state or do I have to go down and observe them ? We can observe them in the state
-
-    # TODO: Do we want our liar to communicate or not?
 
     def __init__(self, settings:Dict[str,object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
         self._lying_prob = 0.80
+
+    def initialize_state(self, state):
+        """ Initialize team members and read goal blocks
+
+        Args:
+            state: state perceived by the agent
+        """
+        for member in state['World']['team_members']:
+            if member != self.agent_name and member not in self._teamMembers:
+                self._teamMembers.append(member)
+
+        self._goal_blocks = {}
+
+        block_name = "Collect_Block"
+
+        for i in range(0, 3):
+            self._goal_blocks[f"block{i}"] = {
+                "visualization": state[block_name]['visualization'],
+                "location": [],
+                "id": [],
+                "drop_off": state[block_name]['location']
+
+            }
+            self._searching_for = {
+                "block": None,
+                "visualization": state[block_name]['visualization'],
+                "location": None,
+                "id": None,
+                "drop_off": state[block_name]['location']
+            }
+            block_name = f"Collect_Block_{i + 1}"
+
+        self._grid_shape = state['World']['grid_shape']
 
     def lie_message(self, message):
         """
@@ -42,7 +69,7 @@ class LiarAgent(GenericAgentTesting):
         keys = list(content.keys())
 
         if 'room_name' in keys:
-            content['room_name'] = f'room_{(int(content["room_name"][-1]) + 1) % 9}'  # increment the room
+            content['room_name'] = f'room_{(int(content["room_name"][-1]) + random.randint(1, 9)) % 9}'  # increment the room
 
         if 'visualization' in keys:
             # change colour to some other colour that could be found in goal blocks
@@ -76,7 +103,10 @@ class LiarAgent(GenericAgentTesting):
 
         # if msg.content not in self.received_messages:
         if random.uniform(0, 1) < self._lying_prob:
-            return self.send_message(self.lie_message(msg))
+            print("lied")
+            msg = self.lie_message(msg)
+
+        print("Liar:", msg.content)
 
         return self.send_message(msg)
 
@@ -96,13 +126,6 @@ class LiarAgent(GenericAgentTesting):
             # pick it up if you're not carrying anything already
             self.find_best_path(state)
             return Phase.PLAN_PATH_TO_BLOCK
-
-
-
-
-        # if agent is carrying other block, deliver it
-
-
 
         # find closed door that none of the agents searched
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:

@@ -11,13 +11,6 @@ from agents1.Message import MessageType
 from agents1.Phase import Phase
 from agents1.util import manhattan_dist
 
-def manhattan_distance(point, location):
-    return abs(point[0] - location[0]) + abs(point[1] - location[1])
-
-
-
-
-
 class StrongAgent(GenericAgentTesting):
 
     def __init__(self, settings: Dict[str, object]):

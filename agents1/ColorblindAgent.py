@@ -2,8 +2,9 @@ from typing import Dict
 from agents1.GenericAgent import GenericAgent
 from agents1.Phase import Phase
 from agents1.Message import MessageType, MessageBuilder
+from agents1.GenericAgentTesting import GenericAgentTesting
 
-class ColorblindAgent(GenericAgent):
+class ColorblindAgent(GenericAgentTesting):
 
     def __init__(self, settings:Dict[str,object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)

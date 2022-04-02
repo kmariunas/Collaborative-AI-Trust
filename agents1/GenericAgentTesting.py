@@ -335,7 +335,7 @@ class GenericAgentTesting(BW4TBrain):
         """
 
         block, id = self._is_carrying.pop()
-
+        print("asfsdafads")
         action = DropObject.__name__, {'object_id': id}
         if block_delivered:
             self.update_phase(phase)
@@ -379,8 +379,9 @@ class GenericAgentTesting(BW4TBrain):
             }
             block_name = f"Collect_Block_{i + 1}"
 
-            self._sendMessage(self._mb.create_message(MessageType.GOAL_BLOCKS, goal_blocks=self._goal_blocks))
-            self._grid_shape = state['World']['grid_shape']
+        self._sendMessage(self._mb.create_message(MessageType.GOAL_BLOCKS, goal_blocks=self._goal_blocks))
+        self._grid_shape = state['World']['grid_shape']
+
     def phase_action(self, state):
         msg = None
         res = None
@@ -517,6 +518,7 @@ class GenericAgentTesting(BW4TBrain):
         if msg.content not in self._messages:
             self.send_message(msg)
             self._messages.add(msg.content)
+            print(self.agent_name, msg.content)
 
     def _processMessages(self, teamMembers):
         """
@@ -589,8 +591,6 @@ class GenericAgentTesting(BW4TBrain):
 
         self._goal_blocks[block_key]["location"].append(new_block_location)
         self._goal_blocks[block_key]["id"].append(new_block_id)
-
-
 
     def find_best_path(self, state):
         agent_loc = state[self.agent_name]['location']
