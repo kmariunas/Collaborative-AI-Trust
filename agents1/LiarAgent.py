@@ -103,10 +103,10 @@ class LiarAgent(GenericAgentTesting):
 
         # if msg.content not in self.received_messages:
         if random.uniform(0, 1) < self._lying_prob:
-            print("lied")
+            # print("lied")
             msg = self.lie_message(msg)
 
-        print("Liar:", msg.content)
+        # print("Liar:", msg.content)
 
         return self.send_message(msg)
 

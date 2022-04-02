@@ -162,15 +162,15 @@ class LazyAgent(GenericAgentTesting):
         """
         if self._finish_action is None:
             if random.uniform(0, 1) < 0.5:
-                print('finish action')
+                # print('finish action')
                 self._finish_action = True
             else:
-                print('will not finish action')
+                # print('will not finish action')
                 self._finish_action = False
 
         if self._finish_action is False:
             if random.uniform(0, 1) < abandon_this_step_prob:
-                print('-- abandon now --')
+                # print('-- abandon now --')
                 # stop following path
                 self._finish_action = None
                 return True

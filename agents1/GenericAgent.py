@@ -10,11 +10,8 @@ from matrx.agents.agent_utils.state_tracker import StateTracker
 
 from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
+from agents1.util import manhattan_distance
 from bw4t.BW4TBrain import BW4TBrain
-
-
-def manhattan_distance(point, location):
-    return abs(point[0] - location[0]) + abs(point[1] - location[1])
 
 
 def closest_point_idx(point, list_of_points):

@@ -10,11 +10,8 @@ from matrx.agents.agent_utils.state_tracker import StateTracker
 
 from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
+from agents1.util import locations_match, manhattan_distance, visualizations_match
 from bw4t.BW4TBrain import BW4TBrain
-
-
-def manhattan_distance(point, location):
-    return abs(point[0] - location[0]) + abs(point[1] - location[1])
 
 
 def closest_point_idx(point, list_of_points):
@@ -311,9 +308,14 @@ class GenericAgentTesting(BW4TBrain):
                      'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']
                      and block['is_collectable'] and block['location'] == state[self.agent_name]['location']]
 
-        # TODO: dont know whats happening here, blocks_id is sometimes empty ???
         if len(blocks_id) == 0:
             # remove block location
+            for block in self._goal_blocks.values():
+                for location in block['location']:
+                    if locations_match(location, state[self.agent_name]['location']):
+                        index = block['location'].index(location)
+                        block['id'].pop(index)
+                        block['location'].pop(index)
             self.update_phase(None)
             return None, {}
 
@@ -521,11 +523,11 @@ class GenericAgentTesting(BW4TBrain):
         if pmsg['type'] is not MessageType.FOUND_GOAL_BLOCK and pmsg['type'] is not MessageType.FOUND_BLOCK:
             self.send_message(msg)
             self._messages.add(msg.content)
-            print(self.agent_name, msg.content)
+            # print(self.agent_name, msg.content)
         elif msg.content not in self._messages:
             self.send_message(msg)
             self._messages.add(msg.content)
-            print(self.agent_name, msg.content)
+            # print(self.agent_name, msg.content)
 
     def _processMessages(self, teamMembers):
         """
@@ -559,12 +561,17 @@ class GenericAgentTesting(BW4TBrain):
                             or msg['type'] is MessageType.OPEN_DOOR:
                         self._com_visited_rooms.add(msg['room_name'])
 
-                    elif msg['type'] is MessageType.DROP_BLOCK \
-                            and len(self._is_carrying) == 1:
-                        block, id = list(self._is_carrying)[0]
-                        if msg['location'] == self._goal_blocks[block]['drop_off']:
-                            self._phase = Phase.DROP_BLOCK
-
+                    # TODO: fix agent is still looking or blocks that have been dropped
+                    elif msg['type'] is MessageType.DROP_BLOCK:
+                        # block, id = list(self._is_carrying)[0]
+                        drop_off_locs = [block['drop_off'] for block in self._goal_blocks.values()]
+                        if msg['location'] in drop_off_locs:
+                            # find block
+                            for key, block in self._goal_blocks.items():
+                                if visualizations_match(block['visualization'], msg['visualization']):
+                                    self._not_found_yet.remove(key)
+                            if len(self._is_carrying) == 1:
+                                self._phase = Phase.DROP_BLOCK
                         # self._phase = Phase.DROP_BLOCK
 
                     receivedMessages[member].append(msg)
@@ -592,7 +599,6 @@ class GenericAgentTesting(BW4TBrain):
         self._phase = phase
 
     def update_goal_block(self, block_key, new_block_location, new_block_id):
-
         self._goal_blocks[block_key]["location"].append(new_block_location)
         self._goal_blocks[block_key]["id"].append(new_block_id)
 
