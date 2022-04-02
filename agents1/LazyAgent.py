@@ -25,8 +25,8 @@ class LazyAgent(GenericAgentTesting):
         Returns: Movement action .
 
         """
-        if self.abandon_action(abandon_this_step_prob=0.6):
-            print('--- abandon ---')
+        if self.abandon_action(abandon_this_step_prob=0.7):
+            # print('--- abandon ---')
             self.update_phase(None)
             return None, {}
 
@@ -48,7 +48,7 @@ class LazyAgent(GenericAgentTesting):
         Returns: action towards the destination, or None if the agent has already arrived
         """
         if self.abandon_action(abandon_this_step_prob=0.3):
-            print('--- abandon ---')
+            # print('--- abandon ---')
             # drop block if agent is carrying one
             if self._phase is Phase.RETURN_GOAL_BLOCK:
                 return self.drop_block(None, block_delivered=False)
@@ -60,6 +60,7 @@ class LazyAgent(GenericAgentTesting):
         return action, _
 
     def find_action(self, state):
+        # TODO: update this stuff
         """
         Method returns an action, different from the previous one, based on the following ranking:
             # 1. if you're carrying a goal block that has already been delivered, drop the block
@@ -87,7 +88,7 @@ class LazyAgent(GenericAgentTesting):
         if found_goal_blocks != 0 and len(self._is_carrying) == 0 \
                 and self._previous_phase is not Phase.RETURN_GOAL_BLOCK \
                 and self._previous_phase is not Phase.GRAB_BLOCK \
-                and self._previous_phase is not Phase.PLAN_PATH_TO_BLOCK:
+                and self._previous_phase is not Phase.FOLLOW_PATH_TO_BLOCK:
             # pick it up if you're not carrying anything already
             self.find_best_path(state)
             return Phase.PLAN_PATH_TO_BLOCK
@@ -160,14 +161,22 @@ class LazyAgent(GenericAgentTesting):
         @return bool: True if agent should abandon action, False otherwise
         """
         if self._finish_action is None:
-            if random.uniform(0, 1) < 0.2:
+            if random.uniform(0, 1) < 0.5:
+                print('finish action')
                 self._finish_action = True
             else:
+                print('will not finish action')
                 self._finish_action = False
 
         if self._finish_action is False:
             if random.uniform(0, 1) < abandon_this_step_prob:
+                print('-- abandon now --')
                 # stop following path
                 self._finish_action = None
                 return True
         return False
+
+    def update_phase(self, phase):
+        self._finish_action = None
+        self._previous_phase = self._phase
+        self._phase = phase
