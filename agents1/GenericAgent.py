@@ -44,6 +44,7 @@ class GenericAgent(BW4TBrain):
         self._com_visited_rooms = set()  # not updated rn
         self._goal_blocks = None
         self._filter = 'agent'
+        #todo, make this generic
         self._searching_for = "block0"
         self._mb = None  # message builder
         self._previous_phase = None
@@ -105,8 +106,8 @@ class GenericAgent(BW4TBrain):
         #   2. if there are any closed doors, open them and search the rooms
         #   3. start searching through open rooms
         # check if a goal block has been located
-        if self._goal_blocks[self._searching_for]['location']:
-            return Phase.PLAN_PATH_TO_BLOCK
+        #if self._goal_blocks[self._searching_for]['location']:
+        #    return Phase.PLAN_PATH_TO_BLOCK
 
         # find closed door that none of the agents searched
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
@@ -476,7 +477,7 @@ class GenericAgent(BW4TBrain):
                             if goal_block['visualization']['shape'] == msg['visualization']['shape'] \
                                     and goal_block['visualization']['size'] == msg['visualization']['size'] \
                                     and goal_block['visualization']['colour'] == msg['visualization']['colour']:
-                                self.update_goal_block(key, goal_block['location'], goal_block['id'])
+                                self.update_goal_block(key, msg['location'], goal_block['id'])
 
                     elif msg['type'] is MessageType.MOVE_TO_ROOM \
                             or msg['type'] is MessageType.SEARCHING_ROOM \

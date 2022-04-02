@@ -124,6 +124,7 @@ class MessageBuilder:
 
     @staticmethod
     def process_message(msg):
+
         """
         Method takes in matrx Message and parses the content into a dictionary
         @param msg: matrx Message

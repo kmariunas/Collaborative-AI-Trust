@@ -2,6 +2,9 @@ import random
 from copy import copy
 import numpy as np
 import json
+
+from agents1.GenericAgentTesting import GenericAgentTesting
+from agents1.StrongAgent import StrongAgent
 from bw4t.BW4TWorld import BW4TWorld
 from bw4t.statistics import Statistics
 from agents1.BW4TBaselineAgent import BaseLineAgent
@@ -91,24 +94,24 @@ def make_agent_combinations(agent_pool, agent_number, number_of_combinations):
 
 if __name__ == "__main__":
     #amount of agents in one run
-    agent_number = 4
-    number_of_combinations = 2 #number of random agent combinations
-    number_of_runs = 2 # runs for each combination
+    agent_number = 2
+    number_of_combinations = 1 #number of random agent combinations
+    number_of_runs = 5 # runs for each combination
     filename = 'data.json' # result file
 
     total_runs = number_of_combinations * number_of_runs
 
     agent_pool = {
-        "liar": { # name here has to match name in agent_pool[agent_name][agent]
-            "agent": {'name':'liar', 'botclass':LiarAgent, 'settings':{}},
-            "join_prob": 0.5, # probability that this agent ends up in the lineup
-            "max": 10, #max number of this agent type
+        "strongagent": { # name here has to match name in agent_pool[agent_name][agent]
+            "agent": {'name':'strongagent', 'botclass':StrongAgent, 'settings':{}},
+            "join_prob": 1, # probability that this agent ends up in the lineup
+            "max": 1, #max number of this agent type
             "added": 0 # Do not change this one
         },
-        "baseline": {
-            "agent": {'name':'baseline', 'botclass':BaseLineAgent, 'settings':{}},
-            "join_prob": 0.7,
-            "max": 10,
+        "generic": {
+            "agent": {'name':'generic', 'botclass':GenericAgentTesting, 'settings':{}},
+            "join_prob": 1,
+            "max": 1,
             "added": 0
         },
     }

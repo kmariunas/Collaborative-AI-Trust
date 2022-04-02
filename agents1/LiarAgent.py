@@ -14,3 +14,4 @@ class LiarAgent(GenericAgent):
     def __init__(self, settings:Dict[str,object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
         self._lying_prob = 0.80
+
