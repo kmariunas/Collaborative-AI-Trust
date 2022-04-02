@@ -76,11 +76,14 @@ class LazyAgent(GenericAgentTesting):
 
         # check if a goal block has been located
         # make sure that agent does not repeat the same action
-        if len(self._is_carrying)==1:
+        if len(self._is_carrying)==1 and self._previous_phase is not Phase.RETURN_GOAL_BLOCK\
+                and self._previous_phase is not Phase.GRAB_BLOCK:
             return Phase.PLAN_PATH_TO_DROP
+
         found_goal_blocks = 0
+
         for block in self._not_found_yet:
-            if(len(self._goal_blocks[block]['location'])!=0):
+            if len(self._goal_blocks[block]['location']) != 0:
                 found_goal_blocks +=1
 
         if found_goal_blocks != 0 and len(self._is_carrying) == 0:
