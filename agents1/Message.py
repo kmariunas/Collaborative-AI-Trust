@@ -144,7 +144,7 @@ class MessageBuilder:
         elif mt is MessageType.FOUND_GOAL_BLOCK_WITH_ID:
             msg = "Goal block with id " + block_vis + " with id [" + block_id + "] at location " + location
         elif mt is MessageType.HELP_CARRY:
-            msg = "HELP_CARRY " + block_vis + " " + location
+            msg = "HELP_CARRY [" + block_id + "] " + location + " " + block_vis
         # elif mt is MessageType.HELPING:
         #     msg = "HELPING " + agent_name
         elif mt is MessageType.CAN_HELP:
@@ -213,7 +213,8 @@ class MessageBuilder:
             res['type'] = MessageType.CAN_HELP
         elif content.startswith("HELP_CARRY"):
             res['type'] = MessageType.HELP_CARRY
-            res['visualization'] = extract_block_vis(content)
+            res['block_id'] = extract_block_id(content)
             res['location'] = extract_location(content)
+            res['block_vis'] = extract_block_vis(content)
 
         return res

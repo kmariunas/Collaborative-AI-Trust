@@ -11,5 +11,11 @@ def locations_match(loc1, loc2):
     return x1 == x2 and y1 == y2
 
 
-def visualizations_match(viz1, viz2):
-    return viz1['shape'] == viz2['shape'] and viz1['size'] == viz2['size'] and viz1['colour'] == viz2['colour']
+def visualizations_match(block1, block2):
+    if block1['colour'] is not None and block2['colour'] is not None:
+        return block1['colour'] == block2['colour'] \
+               and block1['shape'] == block2['shape'] \
+               and block1['size'] == block2['size']
+    else:
+        return block1['shape'] == block2['shape'] \
+               and block1['size'] == block2['size']

@@ -1,31 +1,27 @@
+from asyncio import Queue
 from typing import Dict
 from agents1.GenericAgent import GenericAgent
 from agents1.Phase import Phase
 from agents1.Message import MessageType, MessageBuilder
 from agents1.GenericAgentTesting import GenericAgentTesting
+from agents1 import util
 
 class ColorblindAgent(GenericAgent):
     """
     TODO:
-        1. Colrblind says he is a helper
+        1. Colorblind says he is a helper
         2. lazy now has a pool of agents that can help him carry the blocks
         3. Lazy delegates task to one of the agents
         4. Colorblind says that he is busy
         5. Colorblind carries the block
         6. Once done, says he is available again
 
-
-        1. Lazy sends a message telling that he needs HELP_CARRY
-        2. Colorblind reacts to message by saying I will carry your blocks with the agent name that he is helping
-        3. lazy accepts
-        3. Lazy understands that he does not need to carry the blocks he finds
-        4. Lazy finds a block and sends message CARRY with goal block parameters
-        5. Colorblind goes there and takes the block
     """
     def __init__(self, settings:Dict[str,object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
         self.helping = None # the lazy agent we are helping
-
+        self.delegated_tasks = Queue()
+        self._searching_for = []
 
     def initialize_state(self, state):
         for member in state['World']['team_members']:
@@ -66,6 +62,20 @@ class ColorblindAgent(GenericAgent):
 
         return state
 
+    def find_action(self, state):
+
+        if not self.delegated_tasks.empty() and len(self._is_carrying) == 0: # if we have some delegated tasks (for now picking up blocks) we do that
+            task = self.delegated_tasks.get_nowait()
+
+            self._searching_for = [task["searching_for"]]
+            self.plan_path(task["location"], None)
+
+            self.delegated_tasks.task_done()
+
+            return Phase.FOLLOW_PATH_TO_BLOCK
+        else:
+            return super().find_action(state)
+
     def check_surroundings_for_box(self, state):
         blocks = [(block['visualization'], block['location'], block['obj_id']) for block in state.values() if
                   'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']]
@@ -76,6 +86,7 @@ class ColorblindAgent(GenericAgent):
 
                 if block['shape'] == goal_block['visualization']['shape'] \
                         and block['size'] == goal_block['visualization']['size']:
+
 
                     msg = self._mb.create_message(MessageType.FOUND_BLOCK,
                                                   block_vis=block,
@@ -100,7 +111,8 @@ class ColorblindAgent(GenericAgent):
                     # TODO: now, the agent assumes all messages can be trusted
                     # todo: update only if you trust the agent
                     if msg['type'] is MessageType.GOAL_BLOCKS:
-                        self._goal_blocks = msg["goal_blocks"]
+                        for key, goal_block in msg["goal_blocks"].items():
+                            self._goal_blocks[key]["visualization"]["colour"] = goal_block["visualization"]["colour"]
                     # update goal block location
                     elif msg['type'] is MessageType.FOUND_GOAL_BLOCK:
                         # find the goal block
@@ -117,6 +129,9 @@ class ColorblindAgent(GenericAgent):
 
 
                     elif msg['type'] is MessageType.DROP_BLOCK:
+                        if len(self._searching_for) == 0:
+                            continue
+                        ###
                         if msg['location'] == self._goal_blocks[self._searching_for[0]]['drop_off']:
                             self._phase = Phase.DROP_BLOCK
 
@@ -126,10 +141,28 @@ class ColorblindAgent(GenericAgent):
                                     # remove goal block from searching_for
                                     self._searching_for.remove(goal_block)
 
-                    # elif msg['type'] is MessageType.HELP_CARRY and self.helping is None:
-                    #     self.helping = member
-                    #     msg = self._mb.create_message(MessageType.HELPING, agent_name=self.helping)
-                    #     self._sendMessage(msg)
+                    elif msg['type'] is MessageType.HELP_CARRY:
+                        if self._phase != Phase.DROP_BLOCK and self._phase != Phase.GRAB_BLOCK\
+                            and self._phase != Phase.PLAN_PATH_TO_BLOCK and self._phase != Phase.FOLLOW_PATH_TO_BLOCK \
+                                and self._phase != Phase.PLAN_PATH_TO_DROP and self._phase != Phase.RETURN_GOAL_BLOCK:
+                            self._phase = None
+
+                        for key, block in self._goal_blocks.items():
+                            if util.visualizations_match(block["visualization"], msg['block_vis']):
+                                # if key is not None and key != self._searching_for[0]:
+                                if self._goal_blocks[key]["id"] is None:
+                                    self._goal_blocks[key]["id"] = msg["block_id"]
+                                    self._goal_blocks[key]["location"] = msg["location"]
+
+                                    task = {
+                                        'location': msg['location'],
+                                        'block_id': msg['block_id'],
+                                        'block_vis': msg['block_vis'],
+                                        "searching_for": key
+                                    }
+                                    self.delegated_tasks.put_nowait(task)
+                                    break
+                         # TODO: busy logic
 
                     receivedMessages[member].append(msg)
 

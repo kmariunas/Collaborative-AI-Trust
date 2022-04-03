@@ -114,6 +114,8 @@ class GenericAgent(BW4TBrain):
         # check if a goal block has been located
         # if self._goal_blocks[self._searching_for]['location']:
         #    return Phase.PLAN_PATH_TO_BLOCK
+        if len(self._is_carrying) == 1:
+            return Phase.PLAN_PATH_TO_DROP
 
         # find closed door that none of the agents searched
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
@@ -320,16 +322,20 @@ class GenericAgent(BW4TBrain):
             Drop Action
         """
         self.update_phase(phase)
-        action = DropObject.__name__, {'object_id': self._goal_blocks[self._searching_for[0]]["id"]}
+
+        if len((self._is_carrying)) == 0:
+            return None, {}
+
+        block = self._is_carrying.pop()
+        action = DropObject.__name__, {'object_id': self._goal_blocks[block]["id"]}
 
         # send message
-        if len(self._is_carrying) != 0:
-            msg = self._mb.create_message(MessageType.DROP_BLOCK,
-                                          block_vis=self._goal_blocks[self._is_carrying.pop()]["visualization"],
-                                          location=state[self.agent_name]['location'])
-            self._sendMessage(msg)
+        msg = self._mb.create_message(MessageType.DROP_BLOCK,
+                                      block_vis=self._goal_blocks[block]["visualization"],
+                                      location=state[self.agent_name]['location'])
+        self._sendMessage(msg)
 
-        if block_delivered:
+        if block_delivered and len(self._searching_for) != 0:
             # block_num = min(2, int(self._searching_for[5]) + 1)
             self._searching_for.pop(0)
 
@@ -366,21 +372,18 @@ class GenericAgent(BW4TBrain):
         msg = None
 
         if self._fix_block_order:
-            if Phase.PLAN_PATH_TO_DROP == self._phase:
+            if Phase.PLAN_PATH_TO_BLOCK == self._phase:
                 block = self._blocks_to_fix[0]
                 res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.FOLLOW_PATH_TO_BLOCK)
             elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
                 res = self.follow_path(state, Phase.GRAB_BLOCK)
             elif Phase.GRAB_BLOCK == self._phase:
-                res = self.grab_block(Phase.DROP_BLOCK, state)
                 block = self._blocks_to_fix.pop(0)
+                res = self.grab_block(self._goal_blocks[block]['id'], Phase.DROP_BLOCK)
                 msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
                                               block_vis=self._goal_blocks[block]['visualization'],
                                               location=state[self.agent_name]['location'])
             elif Phase.DROP_BLOCK == self._phase:
-                # msg = self._mb.create_message(MessageType.DROP_BLOCK,
-                #                               block_vis=self._goal_blocks[self._is_carrying[0]]["visualization"],
-                #                               location=state[self.agent_name]['location'])
                 res = self.drop_block(Phase.PLAN_PATH_TO_BLOCK, state)
 
         elif Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
@@ -427,9 +430,6 @@ class GenericAgent(BW4TBrain):
             res = self.follow_path(state, Phase.DROP_BLOCK)
 
         elif Phase.DROP_BLOCK == self._phase:
-            # msg = self._mb.create_message(MessageType.DROP_BLOCK,
-            #                               block_vis=self._goal_blocks[self._searching_for[0]]["visualization"],
-            #                               location=state[self.agent_name]['location'])
             res = self.drop_block(None, state)
 
         else:
@@ -448,6 +448,7 @@ class GenericAgent(BW4TBrain):
                                           location=location)
             self._sendMessage(msg)
             return True
+
         return False
 
     def check_surroundings_for_box(self, state):
@@ -458,14 +459,6 @@ class GenericAgent(BW4TBrain):
         for block, location, obj_id in blocks:
             for key, goal_block in self._goal_blocks.items():
                 self.on_goal_block_match(block, goal_block, key, location, obj_id)
-                # if block['colour'] == goal_block['visualization']['colour'] \
-                #         and block['shape'] == goal_block['visualization']['shape'] \
-                #         and block['size'] == goal_block['visualization']['size']:
-                #     self.update_goal_block(key, location, obj_id)
-                #     msg = self._mb.create_message(MessageType.FOUND_GOAL_BLOCK,
-                #                                   block_vis=self._goal_blocks[key]["visualization"],
-                #                                   location=location)
-                #     self._sendMessage(msg)
 
     def decide_on_bw4t_action(self, state: State):
         if self._goal_blocks is None:
@@ -498,7 +491,8 @@ class GenericAgent(BW4TBrain):
 
         pmsg = MessageBuilder.process_message(msg)
 
-        if pmsg['type'] is not MessageType.FOUND_GOAL_BLOCK and pmsg['type'] is not MessageType.FOUND_BLOCK:
+        if pmsg['type'] is not MessageType.FOUND_GOAL_BLOCK and pmsg['type'] is not MessageType.FOUND_BLOCK\
+                and pmsg['type'] is not MessageType.HELP_CARRY:
             self.send_message(msg)
             self._messages.add(msg.content)
             print(self.agent_name, msg.content)

@@ -4,6 +4,8 @@ from typing import Dict
 from agents1.GenericAgent import GenericAgent
 from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
+from agents1.util import locations_match
+from matrx.actions import DropObject, GrabObject
 
 
 class LazyAgent(GenericAgent):
@@ -90,12 +92,13 @@ class LazyAgent(GenericAgent):
         # if all the blocks have been delivered, rearrange them
         if len(self._searching_for) == 0:
             self._fix_block_order = True
-            return Phase.PLAN_PATH_TO_DROP
+            return Phase.PLAN_PATH_TO_BLOCK
 
         # if the next block has been located, start going in its direction
         # if the previous action was not delivering the goal block to its location
         if self._goal_blocks[self._searching_for[0]]['location'] \
-                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK:
+                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK\
+                and len(self._helper_agents.values()) == 0:
             return Phase.PLAN_PATH_TO_BLOCK
 
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
@@ -186,25 +189,26 @@ class LazyAgent(GenericAgent):
         self._previous_phase = self._phase
         self._phase = phase
 
+
     def on_goal_block_match(self, block, goal_block, key, location, obj_id):
         if super().on_goal_block_match(block, goal_block, key, location, obj_id) is True:
             # delegate task to helper agents
             # first try the free agents
-            for helper, busy in self._helper_agents.items():
-                if not busy:
-                    msg = self._mb.create_message(MessageType.HELP_CARRY,
-                                                  block_vis=self._goal_blocks[key]["visualization"],
-                                                  location=location, to_id=helper)
-                    self._sendMessage(msg)
-                    return
 
+            if key in self._searching_for:
+                available_helpers = [helper for helper, busy in self._helper_agents.items() if busy is False]
+                if len(available_helpers) != 0:
+                    to_id = random.choice(available_helpers)
+                else:
+                    to_id = random.choice(list(self._helper_agents.keys()))
             # if everyone is busy, send it to a random agent
-            msg = self._mb.create_message(MessageType.HELP_CARRY,
-                                          block_vis=self._goal_blocks[key]["visualization"],
-                                          location=location,
-                                          to_id=random.choice(list(self._helper_agents.keys())))
-            self._sendMessage(msg)
-
+                print(self._goal_blocks[key]["id"], location, to_id)
+                msg = self._mb.create_message(MessageType.HELP_CARRY,
+                                              block_vis=block,
+                                              block_id=self._goal_blocks[key]["id"],
+                                              location=location,
+                                              to_id=to_id)
+                self._sendMessage(msg)
 
 
     def _processMessages(self, teamMembers):
@@ -239,13 +243,15 @@ class LazyAgent(GenericAgent):
                         self._com_visited_rooms.add(msg['room_name'])
 
                     elif msg['type'] is MessageType.DROP_BLOCK:
+                        if len(self._searching_for) == 0:
+                            continue
                         if msg['location'] == self._goal_blocks[self._searching_for[0]]['drop_off']:
                             self._phase = Phase.DROP_BLOCK
                         for key, goal_block in self._goal_blocks.items():
-                            if goal_block['drop_off'] == msg['location'] \
-                                    and goal_block in self._searching_for:
+                            if locations_match(goal_block['drop_off'], msg['location']) \
+                                    and key in self._searching_for:
                                 # remove goal block from searching_for
-                                self._searching_for.remove(goal_block)
+                                self._searching_for.remove(key)
                     # For Helpers
                     elif msg['type'] is MessageType.CAN_HELP:
                         self._helper_agents[member] = False # not busy
