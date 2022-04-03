@@ -17,7 +17,10 @@ class MessageType(enum.Enum):
     PICK_UP_BLOCK = 5,
     FOUND_GOAL_BLOCK_WITH_ID = 6,
     FOUND_GOAL_BLOCK = 7,
-    DROP_BLOCK = 8
+    DROP_BLOCK = 8,
+    HELP_CARRY = 9,
+    HELPING = 10,
+    CAN_HELP = 11
 
 
 def extract_goal_blocks(content):
@@ -105,7 +108,7 @@ class MessageBuilder:
     def __init__(self, agent_name):
         self.agent_name = agent_name
 
-    def create_message(self, mt, room_name=None, block_vis=None, location=None, goal_blocks=None, block_id=None):
+    def create_message(self, mt, room_name=None, block_vis=None, location=None, goal_blocks=None, block_id=None, agent_name=None, to_id=None):
         """
         Method returns a matrx Message object with a string content built with the passed parameters
 
@@ -140,12 +143,17 @@ class MessageBuilder:
             msg = "Goal blocks " + json.dumps(goal_blocks)
         elif mt is MessageType.FOUND_GOAL_BLOCK_WITH_ID:
             msg = "Goal block with id " + block_vis + " with id [" + block_id + "] at location " + location
-
+        elif mt is MessageType.HELP_CARRY:
+            msg = "HELP_CARRY " + block_vis + " " + location
+        # elif mt is MessageType.HELPING:
+        #     msg = "HELPING " + agent_name
+        elif mt is MessageType.CAN_HELP:
+            msg = "CAN_HELP"
 
         else:
             raise ValueError(f"not implemented: {mt}")
 
-        return Message(content=msg, from_id=self.agent_name)
+        return Message(content=msg, from_id=self.agent_name, to_id=to_id)
 
     @staticmethod
     def process_message(msg):
@@ -200,5 +208,12 @@ class MessageBuilder:
             res['visualization'] = extract_block_vis(content)
             res['location'] = extract_location(content)
             res['block_id'] = extract_block_id(content)
+
+        elif content == "CAN_HELP":
+            res['type'] = MessageType.CAN_HELP
+        elif content.startswith("HELP_CARRY"):
+            res['type'] = MessageType.HELP_CARRY
+            res['visualization'] = extract_block_vis(content)
+            res['location'] = extract_location(content)
 
         return res
