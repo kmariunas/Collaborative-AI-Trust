@@ -46,7 +46,7 @@ def _update_score(own_score, com_score):
 
 class TrustSystem:
 
-    def _init_(self, agent_name: str, team_members: List[str], goal_blocks, drop_off_locations):
+    def __init__(self, agent_name: str, team_members: List[str], goal_blocks, drop_off_locations):
         self._agent_name = agent_name
         self._team_members_names = team_members
         self._goal_blocks = goal_blocks

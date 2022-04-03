@@ -372,7 +372,7 @@ class GenericAgentTesting(BW4TBrain):
 
             return action
         else:
-            return None
+            return None, {}
 
     def initialize_trust_system(self):
         drop_off_locations = [block['drop_off'] for block in self._goal_blocks.values()]

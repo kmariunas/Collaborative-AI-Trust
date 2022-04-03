@@ -175,7 +175,7 @@ class StrongAgent(GenericAgentTesting):
             return action
         else:
             self.update_phase(phase)
-            return None
+            return None, {}
 
     def plan_path_to_closed_door(self, state, phase):
         """ Finds doors that are still closed and plans a path to them
