@@ -9,7 +9,7 @@ from matrx.actions import DropObject, GrabObject
 
 
 class LazyAgent(GenericAgent):
-    #TODO: if helper agents is not None, never pick up blocks
+    # TODO: if helper agents is not None, never pick up blocks
 
     def __init__(self, settings: Dict[str, object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
@@ -97,7 +97,7 @@ class LazyAgent(GenericAgent):
         # if the next block has been located, start going in its direction
         # if the previous action was not delivering the goal block to its location
         if self._goal_blocks[self._searching_for[0]]['location'] \
-                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK\
+                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK \
                 and len(self._helper_agents.values()) == 0:
             return Phase.PLAN_PATH_TO_BLOCK
 
@@ -189,7 +189,6 @@ class LazyAgent(GenericAgent):
         self._previous_phase = self._phase
         self._phase = phase
 
-
     def on_goal_block_match(self, block, goal_block, key, location, obj_id):
         if super().on_goal_block_match(block, goal_block, key, location, obj_id) is True: #TODO: sometimes does not uodate goalblocks
             # delegate task to helper agents
@@ -201,17 +200,12 @@ class LazyAgent(GenericAgent):
                     to_id = random.choice(available_helpers)
                 else:
                     to_id = random.choice(list(self._helper_agents.keys()))
-            # if everyone is busy, send it to a random agent
-                print("LAAAAAZYYYY:", self._goal_blocks[key]["id"], location, to_id, key, obj_id)
-                print(block)
-                print(self._goal_blocks)
                 msg = self._mb.create_message(MessageType.HELP_CARRY,
                                               block_vis=block,
                                               block_id=obj_id,
                                               location=location,
                                               to_id=to_id)
                 self._sendMessage(msg)
-
 
     def _processMessages(self, teamMembers):
         """
@@ -256,8 +250,7 @@ class LazyAgent(GenericAgent):
                                 self._searching_for.remove(key)
                     # For Helpers
                     elif msg['type'] is MessageType.CAN_HELP:
-                        self._helper_agents[member] = False # not busy
-
+                        self._helper_agents[member] = False  # not busy
 
                     receivedMessages[member].append(msg)
 

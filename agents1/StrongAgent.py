@@ -136,7 +136,7 @@ class StrongAgent(GenericAgentTesting):
     #     self._is_carrying.add(self._searching_for["block"])
 
     #     return GrabObject.__name__, {'object_id': obj_id}
-    def drop_block(self,state, phase, block_delivered=True):
+    def drop_block(self, state, phase, block_delivered=True):
         action = None
         # gather any possible blocks that are already found
         if len(self._get_rid_of_block) > 0:
@@ -147,11 +147,11 @@ class StrongAgent(GenericAgentTesting):
             #                              location=state[self.agent_name]['location'])
             #self._sendMessage(msg)
             action = DropObject.__name__, {'object_id': id}
-            if len(self._get_rid_of_block)>0:
+            if len(self._get_rid_of_block) > 0:
                 self.update_phase(Phase.DROP_BLOCK)
             else:
                 return action
-        elif len(self._is_carrying)>0:
+        elif len(self._is_carrying) > 0:
 
             if block_delivered:
 
@@ -159,8 +159,8 @@ class StrongAgent(GenericAgentTesting):
                 self._currently_dropping = block
 
                 msg = self._mb.create_message(MessageType.DROP_BLOCK,
-                                              block_vis=self._goal_blocks[block]['visualization'],
-                                              location=state[self.agent_name]['location'])
+                                                block_vis=self._goal_blocks[block]['visualization'],
+                                                location=state[self.agent_name]['location'])
                 self._sendMessage(msg)
                 action = DropObject.__name__, {'object_id': id}
                 if len(self._not_found_yet) == 0:
@@ -168,7 +168,7 @@ class StrongAgent(GenericAgentTesting):
 
                 # block_num = min(2, int(self._searching_for[5]) + 1)
                 # self._searching_for = f"block{block_num}"
-            if len(self._is_carrying) > 0:
+            if len(self._is_carrying) > 0 or self._fix_block_order:
                 self.update_phase(Phase.PLAN_PATH_TO_DROP)
             else:
                 self.update_phase(phase)
@@ -251,4 +251,3 @@ class StrongAgent(GenericAgentTesting):
                     # index = np.argwhere(self._goal_blocks[block]["location"] == goal_block_combination[0])
                     # self._searching_for["id"] = self._goal_blocks[block]["id"][index]
                     self._searching_for["drop_off"] = drop_loc
-

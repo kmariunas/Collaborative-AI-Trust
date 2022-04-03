@@ -19,3 +19,9 @@ def visualizations_match(block1, block2):
     else:
         return block1['shape'] == block2['shape'] \
                and block1['size'] == block2['size']
+
+
+def rooms_match(last_message, msg):
+    if last_message['room_name'] != msg['room_name']:
+        return False
+    return True

@@ -18,9 +18,10 @@ class MessageType(enum.Enum):
     FOUND_GOAL_BLOCK_WITH_ID = 6,
     FOUND_GOAL_BLOCK = 7,
     DROP_BLOCK = 8,
-    HELP_CARRY = 9,
-    HELPING = 10,
-    CAN_HELP = 11
+    REPUTATION = 9,
+    HELP_CARRY = 10,
+    HELPING = 11,
+    CAN_HELP = 12
 
 
 def extract_goal_blocks(content):
@@ -95,6 +96,15 @@ def location_str(location):
     return res
 
 
+def extract_trust_scores(content):
+    json_string = content[22:]
+    scores = json.loads(json_string)
+
+    assert scores is not None
+
+    return scores
+
+
 class MessageBuilder:
     """
     Class for sending and reading messages following the communication protocol mentioned in the assignment. To
@@ -108,8 +118,11 @@ class MessageBuilder:
     def __init__(self, agent_name):
         self.agent_name = agent_name
 
-    def create_message(self, mt, room_name=None, block_vis=None, location=None, goal_blocks=None, block_id=None, agent_name=None, to_id=None):
+
+    def create_message(self, mt, room_name=None, block_vis=None, location=None, goal_blocks=None, block_id=None,
+                       agent_name=None, to_id=None, scores=None):
         """
+        # TODO: fix doc
         Method returns a matrx Message object with a string content built with the passed parameters
 
         @param mt: MessageType
@@ -143,6 +156,8 @@ class MessageBuilder:
             msg = "Goal blocks " + json.dumps(goal_blocks)
         elif mt is MessageType.FOUND_GOAL_BLOCK_WITH_ID:
             msg = "Goal block with id " + block_vis + " with id [" + block_id + "] at location " + location
+        elif mt is MessageType.REPUTATION:
+            msg = "Reputation for agents " + json.dumps(scores)
         elif mt is MessageType.HELP_CARRY:
             msg = "HELP_CARRY [" + block_id + "] " + location + " " + block_vis
         # elif mt is MessageType.HELPING:
@@ -208,6 +223,9 @@ class MessageBuilder:
             res['visualization'] = extract_block_vis(content)
             res['location'] = extract_location(content)
             res['block_id'] = extract_block_id(content)
+        elif content.startswith("Reputation for agents "):
+            res['type'] = MessageType.REPUTATION
+            res['scores'] = extract_trust_scores(content)
 
         elif content == "CAN_HELP":
             res['type'] = MessageType.CAN_HELP

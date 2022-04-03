@@ -10,6 +10,7 @@ from matrx.agents.agent_utils.state_tracker import StateTracker
 
 from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
+from agents1.TrustSystem import TrustSystem
 from agents1.util import locations_match, manhattan_distance, visualizations_match
 from bw4t.BW4TBrain import BW4TBrain
 
@@ -33,6 +34,7 @@ class GenericAgentTesting(BW4TBrain):
 
     def __init__(self, settings: Dict[str, object], phase: Phase = None):
         super().__init__(settings)
+        self.trust_system = None
         self._messages = set()
         self._door = None
         self.agent_name = None
@@ -113,15 +115,6 @@ class GenericAgentTesting(BW4TBrain):
         return None, {}
 
     def find_action(self, state):
-        # returns an action based on the following ranking:
-        #   1. if goal block has been located, start going in its direction
-        #   2. if there are any closed doors, open them and search the rooms
-        #   3. start searching through open rooms
-        # check if a goal block has been located
-        # for block in self._not_found_yet:
-        #    if len(self._goal_blocks[block]['location']) != 0:
-        #        return Phase.PLAN_PATH_TO_BLOCK
-
         # find closed door that none of the agents searched
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
             self._filter = 'everyone'
@@ -304,13 +297,7 @@ class GenericAgentTesting(BW4TBrain):
         Returns:
             GrabObject Action
         """
-        #print(self.agent_name)
-        # print()
-        # print(self.agent_name)
-        # print("grabbing block")
-        # print(self._is_carrying)
-        #print(self._not_found_yet)
-        #print()
+
         self.update_phase(phase)
         blocks_id = [block['obj_id'] for block in state.values() if
                      'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']
@@ -335,7 +322,7 @@ class GenericAgentTesting(BW4TBrain):
 
         return GrabObject.__name__, {'object_id': blocks_id[0]}
 
-    def drop_block(self,state, phase, block_delivered=True):
+    def drop_block(self, state, phase, block_delivered=True):
         """ Drops the block under the agent.
 
         Args:
@@ -349,7 +336,7 @@ class GenericAgentTesting(BW4TBrain):
             Drop Action or None
         """
 
-        #gather any possible blocks that are already found
+        # gather any possible blocks that are already found
         if len(self._get_rid_of_block) > 0:
             block, id = self._get_rid_of_block.pop()
             self._is_carrying.discard((block, id))
@@ -359,12 +346,12 @@ class GenericAgentTesting(BW4TBrain):
                                           block_vis=self._goal_blocks[block]['visualization'],
                                           location=state[self.agent_name]['location'])
             self._sendMessage(msg)
-            if len(self._get_rid_of_block)>0:
+            if len(self._get_rid_of_block) > 0:
                 self.update_phase(Phase.DROP_BLOCK)
             else:
                 return action
 
-        elif len(self._is_carrying)>0:
+        elif len(self._is_carrying) > 0:
 
             block, id = self._is_carrying.pop()
             msg = self._mb.create_message(MessageType.DROP_BLOCK,
@@ -387,6 +374,13 @@ class GenericAgentTesting(BW4TBrain):
             return action
         else:
             return None
+
+    def initialize_trust_system(self):
+        drop_off_locations = [block['drop_off'] for block in self._goal_blocks.values()]
+        self.trust_system = TrustSystem(self.agent_name, self._teamMembers, self._goal_blocks.values(),
+                                        drop_off_locations)
+        msg = self.trust_system.reputation_message(self._mb)
+        self._sendMessage(msg)
 
     def initialize_state(self, state):
         """ Initialize team members and read goal blocks
@@ -419,6 +413,8 @@ class GenericAgentTesting(BW4TBrain):
             }
             block_name = f"Collect_Block_{i + 1}"
 
+        self.initialize_trust_system()
+
         self._sendMessage(self._mb.create_message(MessageType.GOAL_BLOCKS, goal_blocks=self._goal_blocks))
         self._grid_shape = state['World']['grid_shape']
 
@@ -426,84 +422,67 @@ class GenericAgentTesting(BW4TBrain):
         msg = None
         res = None
         if self._fix_block_order:
-            if Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
-                res = self.follow_path(state, Phase.GRAB_BLOCK)
-            elif Phase.GRAB_BLOCK == self._phase and state[self.agent_name]['location'] != self._goal_blocks["block0"][
-                "drop_off"]:
-
-                res = self.grab_block(Phase.DROP_BLOCK, state)
-            elif Phase.DROP_BLOCK == self._phase:
-                res = self.drop_block(state,Phase.PLAN_PATH_TO_BLOCK)
-            else:
+            if Phase.PLAN_PATH_TO_DROP == self._phase:
                 block = self._blocks_to_fix.get()
                 res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.FOLLOW_PATH_TO_BLOCK)
-
-        elif Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
-            res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
-            msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
-
-        elif Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
-            res = self.follow_path(state, Phase.OPEN_DOOR)
-
-        elif Phase.OPEN_DOOR == self._phase:
-            res = self.open_door(Phase.PLAN_ROOM_SEARCH)
-            msg = self._mb.create_message(MessageType.OPEN_DOOR, room_name=self._door['room_name'])
-
-        elif Phase.PLAN_PATH_TO_OPEN_DOOR == self._phase:
-            res = self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR)
-            msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
-
-        elif Phase.FOLLOW_PATH_TO_OPEN_DOOR == self._phase:
-            res = self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
-
-        elif Phase.PLAN_ROOM_SEARCH == self._phase:
-            res = self.plan_room_search(state, Phase.SEARCH_ROOM)
-            msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
-
-        elif Phase.SEARCH_ROOM == self._phase:
-            res = self.search_room(state, None)
-
-        elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
-            self.find_best_path(state)
-            res = self.plan_path(self._searching_for["location"], Phase.FOLLOW_PATH_TO_BLOCK)
-
-
-        elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
-            res = self.follow_path(state, Phase.GRAB_BLOCK)
-
-
-
-        elif Phase.GRAB_BLOCK == self._phase:
-            res = self.grab_block(Phase.PLAN_PATH_TO_DROP, state)
-
-            msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
-                                          block_vis=self._searching_for['visualization'],
-                                          location=self._searching_for['location'])
-
-
-        elif Phase.PLAN_PATH_TO_DROP == self._phase:
-            # if len(self._is_carrying) == 0:
-            #    res = self.find_action(state)
-            # else:
-            # print()
-            # print(self.agent_name)
-            # print("dropping:")
-            # print(self._is_carrying)
-
-            block, id = list(self._is_carrying)[0]
-            res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.RETURN_GOAL_BLOCK)
-
-        elif Phase.RETURN_GOAL_BLOCK == self._phase:
-            res = self.follow_path(state, Phase.DROP_BLOCK)
-
-        elif Phase.DROP_BLOCK == self._phase:
-            msg = self._mb.create_message(MessageType.DROP_BLOCK,
-                                          block_vis=self._searching_for["visualization"],
-                                          location=state[self.agent_name]['location'])
-
-            res = self.drop_block(state, None)
+            elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
+                self.follow_path(state, Phase.GRAB_BLOCK)
+            elif Phase.GRAB_BLOCK == self._phase \
+                    and state[self.agent_name]['location'] != self._goal_blocks["block0"]["drop_off"]:
+                res = self.grab_block(Phase.DROP_BLOCK, state)
+            elif Phase.DROP_BLOCK == self._phase:
+                res = self.drop_block(state, Phase.PLAN_PATH_TO_BLOCK)
         else:
-            raise Exception('phase might be None')
+            if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
+                res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
+                msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
+
+            elif Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
+                res = self.follow_path(state, Phase.OPEN_DOOR)
+
+            elif Phase.OPEN_DOOR == self._phase:
+                res = self.open_door(Phase.PLAN_ROOM_SEARCH)
+                msg = self._mb.create_message(MessageType.OPEN_DOOR, room_name=self._door['room_name'])
+
+            elif Phase.PLAN_PATH_TO_OPEN_DOOR == self._phase:
+                res = self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR)
+                msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
+
+            elif Phase.FOLLOW_PATH_TO_OPEN_DOOR == self._phase:
+                res = self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
+
+            elif Phase.PLAN_ROOM_SEARCH == self._phase:
+                res = self.plan_room_search(state, Phase.SEARCH_ROOM)
+                msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
+
+            elif Phase.SEARCH_ROOM == self._phase:
+                res = self.search_room(state, None)
+
+            elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
+                self.find_best_path(state)
+                res = self.plan_path(self._searching_for["location"], Phase.FOLLOW_PATH_TO_BLOCK)
+
+            elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
+                res = self.follow_path(state, Phase.GRAB_BLOCK)
+
+            elif Phase.GRAB_BLOCK == self._phase:
+                res = self.grab_block(Phase.PLAN_PATH_TO_DROP, state)
+
+                msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
+                                              block_vis=self._searching_for['visualization'],
+                                              location=self._searching_for['location'])
+
+            elif Phase.PLAN_PATH_TO_DROP == self._phase:
+                block, id = list(self._is_carrying)[0]
+                res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.RETURN_GOAL_BLOCK)
+
+            elif Phase.RETURN_GOAL_BLOCK == self._phase:
+                res = self.follow_path(state, Phase.DROP_BLOCK)
+
+            elif Phase.DROP_BLOCK == self._phase:
+                res = self.drop_block(state, None)
+        # else:
+        #     raise Exception('phase might be None')
 
         return res, msg
 
@@ -532,10 +511,12 @@ class GenericAgentTesting(BW4TBrain):
 
         self.check_surroundings_for_box(state)
 
-        # Process messages from team members
-        receivedMessages = self._processMessages(self._teamMembers)
+        # parse messages from team members
+        received_messages = self._parse_messages()
         # Update trust beliefs for team members
-        self._trustBlief(self._teamMembers, receivedMessages)
+        self.trust_system.update(received_messages, state['World']['nr_ticks'])
+        # select action based on received messages
+        self._processMessages(received_messages)
 
         # if action has not been selected already, select a task to work on
         # TODO: select action based on messages from other agents, and on weight
@@ -562,31 +543,21 @@ class GenericAgentTesting(BW4TBrain):
         if pmsg['type'] is not MessageType.FOUND_GOAL_BLOCK and pmsg['type'] is not MessageType.FOUND_BLOCK:
             self.send_message(msg)
             self._messages.add(msg.content)
-            # print(self.agent_name, msg.content)
+            print(self.agent_name, msg.content)
         elif msg.content not in self._messages:
             self.send_message(msg)
             self._messages.add(msg.content)
-            # print(self.agent_name, msg.content)
+            print(self.agent_name, msg.content)
 
-    def _processMessages(self, teamMembers):
+
+    def _processMessages(self, received_messages):
         """
-        Process incoming messages and create a dictionary with received messages from each team member.
+        Process incoming messages.
         """
-        receivedMessages = {}
-        for member in teamMembers:
-            receivedMessages[member] = []
 
-        while len(self.received_messages) != 0:
-            msg = self.received_messages.pop(0)
-            self._messages.add(msg)
-
-            msg = MessageBuilder.process_message(msg)
-
-            for member in teamMembers:
-                if msg['from_id'] == member or True:
-                    # TODO: now, the agent assumes all messages can be trusted
-                    # todo: update only if you trust the agent
-                    # update goal block location
+        for messages in received_messages.values():
+            for msg in messages:
+                if self.trust_system.trust_message(msg):
                     if msg['type'] is MessageType.FOUND_GOAL_BLOCK:
                         # find the goal block
                         for key, goal_block in self._goal_blocks.items():
@@ -600,57 +571,74 @@ class GenericAgentTesting(BW4TBrain):
                             or msg['type'] is MessageType.OPEN_DOOR:
                         self._com_visited_rooms.add(msg['room_name'])
 
-                    # TODO: fix agent is still looking or blocks that have been dropped
                     elif msg['type'] is MessageType.DROP_BLOCK:
-                        #print(msg)
-                        #print(self.agent_name)
-                        #print("carrying:")
-                        #print(self._is_carrying)
-                        #print("not found before:")
-                        #print(self._not_found_yet)
-                        # block, id = list(self._is_carrying)[0]
+                        # if msg['location'] == self._goal_blocks[self._searching_for[0]]['drop_off']:
+                        #     self._phase = Phase.DROP_BLOCK
+                        # for key, goal_block in self._goal_blocks.items():
+                        #     if locations_match(goal_block['drop_off'], msg['location']) \
+                        #             and key in self._searching_for:
+                        #         # remove goal block from searching_for
+                        #         self._searching_for.remove(key)
                         drop_off_locs = [block['drop_off'] for block in self._goal_blocks.values()]
-                        #print(drop_off_locs)
-                        #print(msg['location'])
                         if msg['location'] in drop_off_locs:
                             # find block
                             for key, block in self._goal_blocks.items():
                                 if visualizations_match(block['visualization'], msg['visualization']):
-                                    #print(key)
-                                    #print(self._not_found_yet)
                                     self._not_found_yet.discard(key)
-                                    #print("after:")
-                                    #print(self._not_found_yet)
 
                             if len(self._is_carrying) > 0:
                                 for block, id in self._is_carrying:
                                     if self._goal_blocks[block]["drop_off"] == msg['location']:
                                         self._get_rid_of_block.add((block, id))
                                         self._phase = Phase.DROP_BLOCK
-                            #print("not found after:")
-                            #print(self._not_found_yet)
-                        #print()
-                        # self._phase = Phase.DROP_BLOCK
 
-                    receivedMessages[member].append(msg)
-
-        return receivedMessages
-
-    def _trustBlief(self, member, received):
+    def _processMessages(self, received_messages):
         """
-        Baseline implementation of a trust belief. Creates a dictionary with trust belief scores for each team member, for example based on the received messages.
+        Process incoming messages.
         """
-        # You can change the default value to your preference
-        default = 0.5
-        trustBeliefs = {}
-        for member in received.keys():
-            trustBeliefs[member] = default
-        for member in received.keys():
-            for message in received[member]:
-                if 'Found' in message and 'colour' not in message:
-                    trustBeliefs[member] -= 0.1
-                    break
-        return trustBeliefs
+
+        for messages in received_messages.values():
+            for msg in messages:
+                if self.trust_system.trust_message(msg):
+                    if msg['type'] is MessageType.FOUND_GOAL_BLOCK:
+                        # find the goal block
+                        for key, goal_block in self._goal_blocks.items():
+                            if goal_block['visualization']['shape'] == msg['visualization']['shape'] \
+                                    and goal_block['visualization']['size'] == msg['visualization']['size'] \
+                                    and goal_block['visualization']['colour'] == msg['visualization']['colour']:
+                                self.update_goal_block(key, msg['location'], "-1")
+
+                    elif msg['type'] is MessageType.MOVE_TO_ROOM \
+                            or msg['type'] is MessageType.SEARCHING_ROOM:
+                        self._com_visited_rooms.add(msg['room_name'])
+
+                    # TODO: fix agent is still looking or blocks that have been dropped
+                    elif msg['type'] is MessageType.DROP_BLOCK:
+                        # print(msg)
+                        # print(self.agent_name)
+                        # print("carrying:")
+                        # print(self._is_carrying)
+                        # print("not found before:")
+                        # print(self._not_found_yet)
+                        # block, id = list(self._is_carrying)[0]
+                        drop_off_locs = [block['drop_off'] for block in self._goal_blocks.values()]
+                        # print(drop_off_locs)
+                        # print(msg['location'])
+                        if msg['location'] in drop_off_locs:
+                            # find block
+                            for key, block in self._goal_blocks.items():
+                                if visualizations_match(block['visualization'], msg['visualization']):
+                                    # print(key)
+                                    # print(self._not_found_yet)
+                                    self._not_found_yet.discard(key)
+                                    # print("after:")
+                                    # print(self._not_found_yet)
+
+                            if len(self._is_carrying) > 0:
+                                for block, id in self._is_carrying:
+                                    if self._goal_blocks[block]["drop_off"] == msg['location']:
+                                        self._get_rid_of_block.add((block, id))
+                                        self._phase = Phase.DROP_BLOCK
 
     def update_phase(self, phase):
         self._previous_phase = self._phase
@@ -675,3 +663,23 @@ class GenericAgentTesting(BW4TBrain):
                     self._searching_for["location"] = location
                     self._searching_for["id"] = self._goal_blocks[block]["id"][index]
                     self._searching_for["drop_off"] = drop_loc
+
+
+    def _parse_messages(self):
+        """
+        Parses incoming messages and create a dictionary with received messages from each team member.
+        """
+        receivedMessages = {}
+        for member in self._teamMembers:
+            receivedMessages[member] = []
+
+        while len(self.received_messages) != 0:
+            msg = self.received_messages.pop(0)
+            self._messages.add(msg)
+            msg = MessageBuilder.process_message(msg)
+
+            for member in self._teamMembers:
+                if msg['from_id'] == member:
+                    receivedMessages[member].append(msg)
+
+        return receivedMessages

@@ -1,7 +1,4 @@
-from agents1.BW4TBaselineAgent import BaseLineAgent
-from agents1.BW4THuman import Human
-from agents1.GenericAgent import GenericAgent
-from agents1.GenericAgentTesting import GenericAgentTesting
+from agents1.ColorblindAgent import ColorblindAgent
 from agents1.LazyAgent import LazyAgent
 from agents1.LiarAgent import LiarAgent
 from agents1.StrongAgent import StrongAgent
@@ -15,9 +12,11 @@ press the start button in god mode to start the session.
 
 if __name__ == "__main__":
     agents = [
-        {'name':'agent1', 'botclass':LazyAgent, 'settings':{}}, # 'slowdown':10
-        # {'name':'agent2', 'botclass':GenericAgentTesting, 'settings':{}},
-        # {'name':'human', 'botclass':Human, 'settings':{}}
+        # {'name':'lazy', 'botclass':LazyAgent, 'settings':{}}, # 'slowdown':10
+        {'name':'liar2', 'botclass':LiarAgent, 'settings':{}},
+        # {'name': 'liar', 'botclass': LiarAgent, 'settings': {}},
+        {'name': 'colorblind', 'botclass': ColorblindAgent, 'settings': {}},
+        {'name': 'strong', 'botclass': StrongAgent, 'settings': {}}
         ]
 
     print("Started world...")
