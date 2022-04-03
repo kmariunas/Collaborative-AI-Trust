@@ -89,6 +89,9 @@ class LazyAgent(GenericAgent):
         if len(self.find_doors(state, open=True, filter='agent')) != 0:
             self._filter = 'agent'
 
+        else:
+            self._filter = 'everyone'
+
         return Phase.PLAN_PATH_TO_OPEN_DOOR
 
     def plan_path_to_closed_door(self, state, phase):
@@ -103,10 +106,6 @@ class LazyAgent(GenericAgent):
                     None, {}
                 """
         closed_doors = self.find_doors(state, open=False, filter=self._filter)
-
-        # if len(closed_doors) == 0:
-        #     self._phase = None
-        #     return None, {}
 
         self._door = random.choice(closed_doors)
         doorLoc = self._door['location']

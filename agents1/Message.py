@@ -17,6 +17,7 @@ class MessageType(enum.Enum):
     PICK_UP_BLOCK = 5,
     FOUND_GOAL_BLOCK = 6,
     DROP_BLOCK = 7
+    REPUTATION = 8
 
 def extract_goal_blocks(content):
     vis = re.findall("{.*}", content)  # find block visualization

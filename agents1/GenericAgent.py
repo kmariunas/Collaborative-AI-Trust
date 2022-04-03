@@ -326,7 +326,9 @@ class GenericAgent(BW4TBrain):
         return action
 
     def initialize_trust_system(self):
-        self.trust_system = TrustSystem(self.agent_name, self._teamMembers, self._goal_blocks.values())
+        drop_off_locations = [block['drop_off'] for block in self._goal_blocks.values()]
+        self.trust_system = TrustSystem(self.agent_name, self._teamMembers, self._goal_blocks.values(),
+                                        drop_off_locations)
 
     def initialize_state(self, state):
         """ Initialize team members and read goal blocks
@@ -462,6 +464,7 @@ class GenericAgent(BW4TBrain):
             return
 
         if msg.content not in self._messages:
+            print(self.agent_name, msg.content)
             self.send_message(msg)
             self._messages.add(msg.content)
 

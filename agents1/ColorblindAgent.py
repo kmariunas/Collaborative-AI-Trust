@@ -30,6 +30,33 @@ class ColorblindAgent(GenericAgent):
 
         return state
 
+    def initialize_state(self, state):
+        """ Initialize team members and read goal blocks
+
+        Args:
+            state: state perceived by the agent
+        """
+        for member in state['World']['team_members']:
+            if member != self.agent_name and member not in self._teamMembers:
+                self._teamMembers.append(member)
+
+        self._goal_blocks = {}
+
+        block_name = "Collect_Block"
+
+        for i in range(0, 3):
+            self._goal_blocks[f"block{i}"] = {
+                "visualization": state[block_name]['visualization'],
+                "location": None,
+                "id": None,
+                "drop_off": state[block_name]['location']
+            }
+
+            block_name = f"Collect_Block_{i + 1}"
+
+        self.initialize_trust_system()
+        self._grid_shape = state['World']['grid_shape']
+
     def check_surroundings_for_box(self, state):
         blocks = [(block['visualization'], block['location'], block['obj_id']) for block in state.values() if
                   'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']]

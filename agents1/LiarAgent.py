@@ -98,10 +98,15 @@ class LiarAgent(GenericAgent):
         if msg is None:
             return
 
+
+
         # if msg.content not in self.received_messages:
         if random.uniform(0, 1) < self._lying_prob:
-            return self.send_message(self.lie_message(msg))
+            mssg = self.lie_message(msg)
+            print(self.agent_name, mssg.content)
+            return self.send_message(mssg)
 
+        print(self.agent_name, msg.content)
         return self.send_message(msg)
 
 
