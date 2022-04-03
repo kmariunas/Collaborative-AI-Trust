@@ -1,7 +1,7 @@
 # TODO: doc
 
 
-def manhattan_dist(point, location):
+def manhattan_distance(point, location):
     return abs(point[0] - location[0]) + abs(point[1] - location[1])
 
 
@@ -25,3 +25,4 @@ def rooms_match(last_message, msg):
     if last_message['room_name'] != msg['room_name']:
         return False
     return True
+

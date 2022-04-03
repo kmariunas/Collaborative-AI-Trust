@@ -15,15 +15,18 @@ class MessageType(enum.Enum):
     SEARCHING_ROOM = 3,
     FOUND_BLOCK = 4,
     PICK_UP_BLOCK = 5,
-    FOUND_GOAL_BLOCK = 6,
-    DROP_BLOCK = 7
-    REPUTATION = 8
+    FOUND_GOAL_BLOCK_WITH_ID = 6,
+    FOUND_GOAL_BLOCK = 7,
+    DROP_BLOCK = 8,
+    REPUTATION = 9,
+
 
 def extract_goal_blocks(content):
     vis = re.findall("{.*}", content)  # find block visualization
 
     vis = json.loads(vis[0])  # cast string to dict
     return vis
+
 
 def extract_block_vis(content):
     """
@@ -56,6 +59,14 @@ def extract_room(content):
     return room_name[0]
 
 
+def extract_block_id(content):
+    loc = re.findall("\[.*\]", content)
+    loc = loc[0]
+
+    block_id = loc[1: loc.find(']')]
+    return block_id
+
+
 def block_vis_str(block_vis):
     """
     Method takes in block visualization and returns the correct string representation.
@@ -82,6 +93,15 @@ def location_str(location):
     return res
 
 
+def extract_trust_scores(content):
+    json_string = content[22:]
+    scores = json.loads(json_string)
+
+    assert scores is not None
+
+    return scores
+
+
 class MessageBuilder:
     """
     Class for sending and reading messages following the communication protocol mentioned in the assignment. To
@@ -91,11 +111,14 @@ class MessageBuilder:
     Implemented custom messages:
     * FOUND_BLOCK: "Found block [block_vis] at location [location]"
     """
+
     def __init__(self, agent_name):
         self.agent_name = agent_name
 
-    def create_message(self, mt, room_name=None, block_vis=None, location=None, goal_blocks = None):
+    def create_message(self, mt, room_name=None, block_vis=None, location=None, goal_blocks=None, block_id=None,
+                       scores=None):
         """
+        # TODO: fix doc
         Method returns a matrx Message object with a string content built with the passed parameters
 
         @param mt: MessageType
@@ -127,6 +150,10 @@ class MessageBuilder:
             msg = "Found block " + block_vis + " at location " + location
         elif mt is MessageType.GOAL_BLOCKS:
             msg = "Goal blocks " + json.dumps(goal_blocks)
+        elif mt is MessageType.FOUND_GOAL_BLOCK_WITH_ID:
+            msg = "Goal block with id " + block_vis + " with id [" + block_id + "] at location " + location
+        elif mt is MessageType.REPUTATION:
+            msg = "Reputation for agents " + json.dumps(scores)
 
         else:
             raise ValueError(f"not implemented: {mt}")
@@ -135,6 +162,7 @@ class MessageBuilder:
 
     @staticmethod
     def process_message(msg):
+
         """
         Method takes in matrx Message and parses the content into a dictionary
         @param msg: matrx Message
@@ -153,32 +181,40 @@ class MessageBuilder:
         if content.startswith("Opening door of "):
             res['type'] = MessageType.OPEN_DOOR
             res['room_name'] = extract_room(content)
-        if content.startswith("Dropped goal block "):
+        elif content.startswith("Dropped goal block "):
             res['type'] = MessageType.DROP_BLOCK
             # extract block vis
             res['visualization'] = extract_block_vis(content)
             # extract location
             res['location'] = extract_location(content)
-        if content.startswith("Picking up goal block "):
+        elif content.startswith("Picking up goal block "):
             res['type'] = MessageType.PICK_UP_BLOCK
             res['visualization'] = extract_block_vis(content)
             res['location'] = extract_location(content)
-        if content.startswith("Moving to "):
+        elif content.startswith("Moving to "):
             res['type'] = MessageType.MOVE_TO_ROOM
             res['room_name'] = extract_room(content)
-        if content.startswith("Searching through "):
+        elif content.startswith("Searching through "):
             res['type'] = MessageType.SEARCHING_ROOM
             res['room_name'] = extract_room(content)
-        if content.startswith("Found goal block "):
+        elif content.startswith("Found goal block "):
             res['type'] = MessageType.FOUND_GOAL_BLOCK
             res['visualization'] = extract_block_vis(content)
             res['location'] = extract_location(content)
-        if content.startswith("Found block "):
+        elif content.startswith("Found block "):
             res['type'] = MessageType.FOUND_BLOCK
             res['visualization'] = extract_block_vis(content)
             res['location'] = extract_location(content)
-        if content.startswith("Goal blocks "):
+        elif content.startswith("Goal blocks "):
             res['type'] = MessageType.GOAL_BLOCKS
             res['goal_blocks'] = extract_goal_blocks(content)
+        elif content.startswith("Goal block with id "):
+            res['type'] = MessageType.FOUND_GOAL_BLOCK_WITH_ID
+            res['visualization'] = extract_block_vis(content)
+            res['location'] = extract_location(content)
+            res['block_id'] = extract_block_id(content)
+        elif content.startswith("Reputation for agents "):
+            res['type'] = MessageType.REPUTATION
+            res['scores'] = extract_trust_scores(content)
 
         return res

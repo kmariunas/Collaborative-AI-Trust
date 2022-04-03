@@ -1,15 +1,47 @@
 import json
+import math
 import os
 from json import JSONEncoder
 from typing import List
 
-from agents1.Message import MessageType
+from agents1.Message import MessageType, MessageBuilder
 from agents1.util import rooms_match, visualizations_match, locations_match
 
 
 class TrustSystemEncoder(JSONEncoder):
     def default(self, o):
         return o.__dict__
+
+
+def _update_score(own_score, com_score):
+    acc_own, tot_own = own_score        # accurate and total experiences
+    acc_com, tot_com = com_score
+
+    # the communicated score has more uncertainty than our score
+    if tot_com < 0.8 * acc_own:
+        return own_score        # so dont update our score
+
+    if tot_own <= tot_com:
+        common_denominator = tot_com
+        keep = acc_com
+
+        old_denominator = tot_own
+        scale = acc_own
+    else:
+        common_denominator = tot_own
+        keep = acc_own
+
+        old_denominator = tot_com
+        scale = acc_com
+
+    # formula for update:
+    # new score = [avg(common_den * scale / old_den, keep),
+    #              common_den]
+    avg = math.floor(
+        ((common_denominator * scale / old_denominator) + keep)
+        / 2)    # take floor of average
+
+    return (avg, common_denominator)
 
 
 class TrustSystem:
@@ -40,6 +72,7 @@ class TrustSystem:
                 "competence": (0, 1),
                 "reliability": (0, 1)
             }
+        self.write_file(agents_trust)
         return agents_trust
 
     def trust_message(self, msg):
@@ -70,29 +103,30 @@ class TrustSystem:
         # update trust points
         for team_member, messages in received_messages.items():
             for msg in messages:
+                if msg['type'] == MessageType.REPUTATION and self._is_reliable(msg['from_id']):
+                    self._update_reputation(msg['scores'])
+                
                 # update reliability and competence of team member
-                if msg['type'] == MessageType.GOAL_BLOCKS:
+                elif msg['type'] == MessageType.GOAL_BLOCKS:
                     self._increase_reliability(team_member)
 
                 elif msg['type'] == MessageType.MOVE_TO_ROOM:
-                    if self._mtr_contradiction(msg):
+                    if self._mtr_contradiction(msg, tick):
                         self._decrease_competence(team_member)
 
                 elif msg['type'] == MessageType.OPEN_DOOR:
-                    if self._od_contradiction(msg):
+                    if self._od_contradiction(msg, tick):
                         self._decrease_reliability(team_member)
-                    else:
-                        self._increase_reliability(team_member)
 
                 elif msg['type'] == MessageType.FOUND_BLOCK:
                     self._increase_reliability(team_member)
 
-                # TODO: maybe remove this
-                elif msg['type'] == MessageType.FOUND_GOAL_BLOCK:
-                    if self._fgb_contradiction(msg):
-                        self._decrease_reliability(team_member)
-                    else:
-                        self._increase_reliability(team_member)
+                # # TODO: maybe remove this
+                # elif msg['type'] == MessageType.FOUND_GOAL_BLOCK:
+                #     if self._fgb_contradiction(msg):
+                #         self._decrease_reliability(team_member)
+                #     else:
+                #         self._increase_reliability(team_member)
 
                 elif msg['type'] == MessageType.SEARCHING_ROOM:
                     if self._sr_contradiction(msg):
@@ -133,10 +167,13 @@ class TrustSystem:
                 }
         return res
 
-    def write_file(self):
+    def write_file(self, agent_trust=None):
         file_path = self._agent_name + ".json"
         with open(file_path, "w") as file:
-            file.write(json.dumps(self._team_members, cls=TrustSystemEncoder, indent=2))
+            if agent_trust:
+                file.write(json.dumps(agent_trust, cls=TrustSystemEncoder, indent=2))
+            else:
+                file.write(json.dumps(self._team_members, cls=TrustSystemEncoder, indent=2))
 
     def _init_messages(self):
         messages = dict()
@@ -158,7 +195,7 @@ class TrustSystem:
 
     def _decrease_reliability(self, team_member):
         accurate, total = self._team_members[team_member]['reliability']
-        self._team_members[team_member]['reliability'] = (accurate, total + 2)
+        self._team_members[team_member]['reliability'] = (accurate, total + 1)
 
     def _increase_competence(self, team_member):
         accurate, total = self._team_members[team_member]['competence']
@@ -166,37 +203,46 @@ class TrustSystem:
 
     def _decrease_competence(self, team_member):
         accurate, total = self._team_members[team_member]['competence']
-        self._team_members[team_member]['competence'] = (accurate, total + 2)
+        self._team_members[team_member]['competence'] = (accurate, total + 1)
 
-    def _mtr_contradiction(self, msg):
+    def _mtr_contradiction(self, msg, current_tick):
         """
         Method returns True if there is a contradiction
         """
-        # TODO: improve ie: use ticks (did the agent really search the room or they only said they would
+        # TODO: improve ie:
         team_member = msg['from_id']
         if len(self._messages[team_member]) == 0:
             return False
 
         # check in previous messages if agent changed their mind
-        last_message, _ = self._messages[team_member][-1]
+        last_message, tick = self._messages[team_member][-1]
         if last_message['type'] == MessageType.MOVE_TO_ROOM:
             return True
-        else:
-            return False
+        # did the agent really search the room, or they only said they would
+        # it takes 5 ticks to search a room
+        if last_message['type'] == MessageType.SEARCHING_ROOM and current_tick - tick < 5:
+            return True
 
-    def _od_contradiction(self, msg):
+        return False
+
+
+    def _od_contradiction(self, msg, current_tick):
         """  Checks if there is a contradiction with the last message when an agent says it is opening some room door
 
         @param msg: received message
         @return: True if the agent said he moved to some room but is opening the door of another or if the message is not related to previous message
         """
         team_member = msg['from_id']
-        last_message, _ = self._messages[team_member][-1]
+        last_message, tick = self._messages[team_member][-1]
 
-        if last_message['type'] == MessageType.MOVE_TO_ROOM:  # TODO: @Carlos check the last message that was of this type, the agent might send a FOUND_BLOCK inbetween
+        if last_message['type'] == MessageType.MOVE_TO_ROOM:
             return not rooms_match(last_message, msg)
+        # check if agent said they would search a room but did not
+        # note: searching a room takes 5-6 seconds
+        if last_message['type'] == MessageType.SEARCHING_ROOM and current_tick - tick < 5:
+            return True
 
-        return True
+        return False
 
     def _fgb_contradiction(self, msg):
         """
@@ -225,14 +271,10 @@ class TrustSystem:
         last_message, _ = self._messages[team_member][-1]
 
         # check if the agent moved to that room before
-        if last_message['type'] == MessageType.MOVE_TO_ROOM:
+        if last_message['type'] == MessageType.MOVE_TO_ROOM or last_message['type'] == MessageType.OPEN_DOOR:
             return not rooms_match(last_message=last_message, msg=msg)
 
-        # check if the agent opened the door of the same room
-        elif last_message['type'] == MessageType.OPEN_DOOR:
-            return not rooms_match(last_message=last_message, msg=msg)
-
-        return True
+        return False
 
     def _pb_contradiction(self, msg):
         """
@@ -311,4 +353,28 @@ class TrustSystem:
                     return 0
 
         return 2
+
+    def reputation_message(self, msg_builder: MessageBuilder):
+        team_members_scores = dict()
+
+        for team_member in self._team_members_names:
+            team_members_scores[team_member] = {
+                "reliability": self._team_members[team_member]["reliability"],
+                "competence": self._team_members[team_member]["competence"]
+            }
+        msg = msg_builder.create_message(MessageType.REPUTATION, scores=team_members_scores)
+        return msg
+
+    def _update_reputation(self, scores):
+        for agent, score in scores.items():
+            if agent in self._team_members_names:
+                # update reliability
+                updated = _update_score(self._team_members[agent]['reliability'], score['reliability'])
+                self._team_members[agent]['reliability'] = updated
+
+                # update competence
+                updated = _update_score(self._team_members[agent]['competence'], score['competence'])
+                self._team_members[agent]['competence'] = updated
+        self.write_file()
+
 # TODO: check locations (ie: goal block is not a wall or goal block is inside the room the agent said they will search)

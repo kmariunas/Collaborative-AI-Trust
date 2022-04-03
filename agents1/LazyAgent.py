@@ -16,7 +16,6 @@ class LazyAgent(GenericAgent):
 
         Args:
             state: matrx state perceived by the agent.
-            phase: Next phase if the goal block is found in the room
 
         Note:
             Once the agent searches the entire room, if it has found a block it is looking for, it will set the phase
@@ -25,7 +24,8 @@ class LazyAgent(GenericAgent):
         Returns: Movement action .
 
         """
-        if self.abandon_action(abandon_this_step_prob=0.6):
+        if self.abandon_action(abandon_this_step_prob=0.7):
+            # print('--- abandon ---')
             self.update_phase(None)
             return None, {}
 
@@ -47,9 +47,10 @@ class LazyAgent(GenericAgent):
         Returns: action towards the destination, or None if the agent has already arrived
         """
         if self.abandon_action(abandon_this_step_prob=0.3):
+            # print('--- abandon ---')
             # drop block if agent is carrying one
             if self._phase is Phase.RETURN_GOAL_BLOCK:
-                return self.drop_block(None, block_delivered=False)
+                return self.drop_block(None, state, block_delivered=False)
             self.update_phase(None)
             return None, {}
 
@@ -58,24 +59,29 @@ class LazyAgent(GenericAgent):
         return action, _
 
     def find_action(self, state):
+        # TODO: update this stuff
         """
         Method returns an action, different from the previous one, based on the following ranking:
-            # 1. if you're carrying a goal block that has already been delivered, drop the block
+            1. if agent is carrying goal block, deliver it
             1. if goal block has been located, start going in its direction
             2. if there are any closed doors that no one has explored, explore them
             3. if there are any closed doors that the agent has not explored, explore them
             4. if there are any rooms that the agent has not explored, explore them
             5. explore random room
         """
-        # # if you're carrying a block that has been delivered already, drop that block
-        # if len(self._is_carrying) != 0 and self._searching_for not in self._is_carrying:
-        #     return Phase.DROP_BLOCK
+        # if agent is carrying a block, deliver it
+        if len(self._is_carrying) == 1:
+            return Phase.PLAN_PATH_TO_DROP
 
-        # check if a goal block has been located
-        # make sure that agent does not repeat the same action
-        if self._goal_blocks[self._searching_for]["location"] is not None \
-                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK \
-                and self._previous_phase is not Phase.GRAB_BLOCK:
+        # if all the blocks have been delivered, rearrange them
+        if len(self._searching_for) == 0:
+            self._fix_block_order = True
+            return Phase.PLAN_PATH_TO_DROP
+
+        # if the next block has been located, start going in its direction
+        # if the previous action was not delivering the goal block to its location
+        if self._goal_blocks[self._searching_for[0]]['location'] \
+                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK:
             return Phase.PLAN_PATH_TO_BLOCK
 
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
@@ -90,8 +96,7 @@ class LazyAgent(GenericAgent):
             self._filter = 'agent'
 
         else:
-            self._filter = 'everyone'
-
+            self._filter = 'none'
         return Phase.PLAN_PATH_TO_OPEN_DOOR
 
     def plan_path_to_closed_door(self, state, phase):
@@ -148,13 +153,21 @@ class LazyAgent(GenericAgent):
         """
         if self._finish_action is None:
             if random.uniform(0, 1) < 0.5:
+                print('-- finish action --')
                 self._finish_action = True
             else:
+                print('-- will not finish action --')
                 self._finish_action = False
 
         if self._finish_action is False:
             if random.uniform(0, 1) < abandon_this_step_prob:
+                print('--- abandon now --')
                 # stop following path
                 self._finish_action = None
                 return True
         return False
+
+    def update_phase(self, phase):
+        self._finish_action = None
+        self._previous_phase = self._phase
+        self._phase = phase
