@@ -9,3 +9,5 @@
 .DS_Store
 *.xml
 *.iml
+colorblind0.json
+*.json

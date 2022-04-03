@@ -38,51 +38,51 @@ random_seed = random.randint(0, 42000)
 
 DEBUG_MODE = False
 
-number_of_agents = 2, 10 # from - to, the number of agents in each configuration is selkected randomly
-number_of_combinations = 3  # number of random agent combinations
-number_of_runs = 5  # runs for each combination
+number_of_agents = 2, 6 # from - to, the number of agents in each configuration is selkected randomly
+number_of_combinations = 5  # number of random agent combinations
+number_of_runs = 20  # runs for each combination
 filename = 'data.json'  # result file
 run_matrx_api = DEBUG_MODE
 run_matrx_visualizer = DEBUG_MODE
 matrx_paused = DEBUG_MODE
-deadline = 600 # max number of ticks
+deadline = 1000 # max number of ticks
 tick_duration = 0 # 0 = fastest
 
 agent_pool = {
-    "baseline": {
-        "agent": {'name': 'baseline', 'botclass': BaseLineAgent, 'settings': {}},
-        "join_prob": 0.7,
-        "max": 0,
-        "added": 0
-    },
-    "generic": {  # name here has to match name in agent_pool[agent_name][agent]
-        "agent": {'name': 'generic', 'botclass': GenericAgent, 'settings': {}},
-        "join_prob": 0.5,  # probability that this agent ends up in the lineup
-        "max": 10,  # max number of this agent type
-        "added": 0  # Do not change this one
-    },
+    # "baseline": {
+    #     "agent": {'name': 'baseline', 'botclass': BaseLineAgent, 'settings': {}},
+    #     "join_prob": 0.7,
+    #     "max": 0,
+    #     "added": 0
+    # },
+    # "generic": {  # name here has to match name in agent_pool[agent_name][agent]
+    #     "agent": {'name': 'generic', 'botclass': GenericAgent, 'settings': {}},
+    #     "join_prob": 0.5,  # probability that this agent ends up in the lineup
+    #     "max": 0,  # max number of this agent type
+    #     "added": 0  # Do not change this one
+    # },
     "strong": {  # name here has to match name in agent_pool[agent_name][agent]
         "agent": {'name': 'strong', 'botclass': StrongAgent, 'settings': {}},
         "join_prob": 0.5,  # probability that this agent ends up in the lineup
-        "max": 0,  # max number of this agent type
+        "max": 4,  # max number of this agent type
         "added": 0  # Do not change this one
     },
     "colorblind": {  # name here has to match name in agent_pool[agent_name][agent]
         "agent": {'name': 'colorblind', 'botclass': ColorblindAgent, 'settings': {}},
         "join_prob": 0.5,  # probability that this agent ends up in the lineup
-        "max": 0,  # max number of this agent type
+        "max": 4,  # max number of this agent type
         "added": 0  # Do not change this one
     },
     "liar": {  # name here has to match name in agent_pool[agent_name][agent]
         "agent": {'name': 'liar', 'botclass': LiarAgent, 'settings': {}},
         "join_prob": 0.5,  # probability that this agent ends up in the lineup
-        "max": 0,  # max number of this agent type
+        "max": 4,  # max number of this agent type
         "added": 0  # Do not change this one
     },
     "lazy": {  # name here has to match name in agent_pool[agent_name][agent]
         "agent": {'name': 'lazy', 'botclass': LazyAgent, 'settings': {}},
         "join_prob": 0.5,  # probability that this agent ends up in the lineup
-        "max": 0,  # max number of this agent type
+        "max": 4,  # max number of this agent type
         "added": 0  # Do not change this one
     },
 }
@@ -133,15 +133,18 @@ def make_agent_combinations(agent_pool, agent_number, number_of_combinations):
     setup = []
 
     for i in range(0, number_of_combinations):
+        print(i)
         agent_combinations.append([])
 
         while len(agent_combinations[i]) != agent_number:
             for agent in agent_pool.values():
                 if len(agent_combinations[i]) == agent_number:
                     break
-
+                print(agent)
                 if agent["max"] != agent["added"]:
+
                     if random.uniform(0, 1) <= agent["join_prob"]:
+                        print(agent["agent"]["name"], flush=True)
                         agent_copy = copy(agent["agent"])
                         agent_copy["name"] += str(agent["added"])
                         agent_combinations[i].append(agent_copy)
@@ -155,21 +158,6 @@ def make_agent_combinations(agent_pool, agent_number, number_of_combinations):
     return agent_combinations, setup
 
 if __name__ == "__main__":
-
-    agent_pool = {
-        "strongagent": { # name here has to match name in agent_pool[agent_name][agent]
-            "agent": {'name':'strongagent', 'botclass':StrongAgent, 'settings':{}},
-            "join_prob": 1, # probability that this agent ends up in the lineup
-            "max": 1, #max number of this agent type
-            "added": 0 # Do not change this one
-        },
-        "generic": {
-            "agent": {'name':'generic', 'botclass':GenericAgentTesting, 'settings':{}},
-            "join_prob": 1,
-            "max": 1,
-            "added": 0
-        },
-    }
 
     agent_combinations, setup = make_agent_combinations(agent_pool, random.randint(number_of_agents[0], number_of_agents[1]), number_of_combinations)
 
@@ -199,9 +187,10 @@ if __name__ == "__main__":
         total_agent_drops = None
         total_agent_moves = None
         total_ticks = []
-
+        print(agent_combination)
         for i in range(0, number_of_runs):
             print(f"COMBINATION: {idx} RUN: {i}", flush=True)
+
             random_seed = random.randint(0, 42000)
             BENCHMARK_WORLDSETTINGS['random_seed'] = random_seed
 
