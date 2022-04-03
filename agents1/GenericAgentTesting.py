@@ -420,7 +420,7 @@ class GenericAgentTesting(BW4TBrain):
 
     def phase_action(self, state):
         msg = None
-        res = None
+        res = None, {}
         if self._fix_block_order:
             if Phase.PLAN_PATH_TO_DROP == self._phase:
                 block = self._blocks_to_fix.get()

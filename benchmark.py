@@ -40,7 +40,7 @@ DEBUG_MODE = False
 
 number_of_agents = 2, 6 # from - to, the number of agents in each configuration is selkected randomly
 number_of_combinations = 5  # number of random agent combinations
-number_of_runs = 20  # runs for each combination
+number_of_runs = 5  # runs for each combination
 filename = 'colorlazy.json'  # result file
 run_matrx_api = False
 run_matrx_visualizer = False
@@ -49,18 +49,6 @@ deadline = 1000 # max number of ticks
 tick_duration = 0 # 0 = fastest
 
 agent_pool = {
-    # "baseline": {
-    #     "agent": {'name': 'baseline', 'botclass': BaseLineAgent, 'settings': {}},
-    #     "join_prob": 0.7,
-    #     "max": 0,
-    #     "added": 0
-    # },
-    # "generic": {  # name here has to match name in agent_pool[agent_name][agent]
-    #     "agent": {'name': 'generic', 'botclass': GenericAgent, 'settings': {}},
-    #     "join_prob": 0.5,  # probability that this agent ends up in the lineup
-    #     "max": 10,  # max number of this agent type
-    #     "added": 0  # Do not change this one
-    # },
     "strong": {  # name here has to match name in agent_pool[agent_name][agent]
         "agent": {'name': 'strong', 'botclass': StrongAgent, 'settings': {}},
         "join_prob": 0.5,  # probability that this agent ends up in the lineup

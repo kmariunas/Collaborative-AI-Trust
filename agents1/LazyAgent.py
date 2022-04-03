@@ -4,8 +4,7 @@ import random
 from agents1.GenericAgent import GenericAgent
 from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
-from agents1.utils import locations_match
-from agents1.Message import
+from agents1.util import locations_match
 
 
 class LazyAgent(GenericAgent):
@@ -13,6 +12,7 @@ class LazyAgent(GenericAgent):
     def __init__(self, settings: Dict[str, object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
         self._finish_action = None
+        self._helper_agents = {}
 
     def search_room(self, state):
         """ After each search agent moves to the waypoint given by @plan_room_search.
@@ -78,7 +78,7 @@ class LazyAgent(GenericAgent):
         # if the next block has been located, start going in its direction
         # if the previous action was not delivering the goal block to its location
         if self._goal_blocks[self._searching_for[0]]['location'] \
-                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK:
+                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK and len(self._helper_agents.values()) == 0:
             return Phase.PLAN_PATH_TO_BLOCK
 
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:

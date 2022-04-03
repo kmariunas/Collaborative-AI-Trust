@@ -64,7 +64,9 @@ class StrongAgent(GenericAgentTesting):
             return Phase.PLAN_PATH_TO_OPEN_DOOR
 
     def phase_action(self, state):
-        res, msg = None, None
+        res = None, {}
+        msg = None
+
         location = self._searching_for["location"]
         if self._fix_block_order:
             # print("hello")
