@@ -2,14 +2,30 @@ import random
 from typing import Dict
 
 from agents1.GenericAgent import GenericAgent
+from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
+from agents1.util import locations_match
+from matrx.actions import DropObject, GrabObject
 
 
 class LazyAgent(GenericAgent):
+    # TODO: if helper agents is not None, never pick up blocks
 
     def __init__(self, settings: Dict[str, object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
         self._finish_action = None
+        self._helper_agents = {}
+
+    # def initialize_state(self, state):
+    #     """ Initialize team members and read goal blocks
+    #
+    #     Args:
+    #         state: state perceived by the agent
+    #     """
+    #     super().initialize_state(state)
+    #
+    #     # #ask for help
+    #     # self._sendMessage(self._mb.create_message(MessageType.HELP_CARRY))
 
     def search_room(self, state):
         """ After each search agent moves to the waypoint given by @plan_room_search.
@@ -76,12 +92,13 @@ class LazyAgent(GenericAgent):
         # if all the blocks have been delivered, rearrange them
         if len(self._searching_for) == 0:
             self._fix_block_order = True
-            return Phase.PLAN_PATH_TO_DROP
+            return Phase.PLAN_PATH_TO_BLOCK
 
         # if the next block has been located, start going in its direction
         # if the previous action was not delivering the goal block to its location
         if self._goal_blocks[self._searching_for[0]]['location'] \
-                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK:
+                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK \
+                and len(self._helper_agents.values()) == 0:
             return Phase.PLAN_PATH_TO_BLOCK
 
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
@@ -171,3 +188,72 @@ class LazyAgent(GenericAgent):
         self._finish_action = None
         self._previous_phase = self._phase
         self._phase = phase
+
+    def on_goal_block_match(self, block, goal_block, key, location, obj_id):
+        if super().on_goal_block_match(block, goal_block, key, location, obj_id) is True:
+            # delegate task to helper agents
+            # first try the free agents
+
+            if key in self._searching_for:
+                available_helpers = [helper for helper, busy in self._helper_agents.items() if busy is False]
+                if len(available_helpers) != 0:
+                    to_id = random.choice(available_helpers)
+                else:
+                    to_id = random.choice(list(self._helper_agents.keys()))
+                # if everyone is busy, send it to a random agent
+                print(self._goal_blocks[key]["id"], location, to_id)
+                msg = self._mb.create_message(MessageType.HELP_CARRY,
+                                              block_vis=block,
+                                              block_id=self._goal_blocks[key]["id"],
+                                              location=location,
+                                              to_id=to_id)
+                self._sendMessage(msg)
+
+    def _processMessages(self, teamMembers):
+        """
+        Process incoming messages and create a dictionary with received messages from each team member.
+        """
+        receivedMessages = {}
+        for member in teamMembers:
+            receivedMessages[member] = []
+
+        while len(self.received_messages) != 0:
+            msg = self.received_messages.pop(0)
+            self._messages.add(msg)
+            msg = MessageBuilder.process_message(msg)
+
+            for member in teamMembers:
+                if msg['from_id'] == member:
+                    # TODO: now, the agent assumes all messages can be trusted
+                    # todo: update only if you trust the agent
+                    # update goal block location
+                    if msg['type'] is MessageType.FOUND_GOAL_BLOCK:
+                        # find the goal block
+                        for key, goal_block in self._goal_blocks.items():
+                            if goal_block['visualization']['shape'] == msg['visualization']['shape'] \
+                                    and goal_block['visualization']['size'] == msg['visualization']['size'] \
+                                    and goal_block['visualization']['colour'] == msg['visualization']['colour']:
+                                self.update_goal_block(key, msg['location'], goal_block['id'])
+
+                    elif msg['type'] is MessageType.MOVE_TO_ROOM \
+                            or msg['type'] is MessageType.SEARCHING_ROOM \
+                            or msg['type'] is MessageType.OPEN_DOOR:
+                        self._com_visited_rooms.add(msg['room_name'])
+
+                    elif msg['type'] is MessageType.DROP_BLOCK:
+                        if len(self._searching_for) == 0:
+                            continue
+                        if msg['location'] == self._goal_blocks[self._searching_for[0]]['drop_off']:
+                            self._phase = Phase.DROP_BLOCK
+                        for key, goal_block in self._goal_blocks.items():
+                            if locations_match(goal_block['drop_off'], msg['location']) \
+                                    and key in self._searching_for:
+                                # remove goal block from searching_for
+                                self._searching_for.remove(key)
+                    # For Helpers
+                    elif msg['type'] is MessageType.CAN_HELP:
+                        self._helper_agents[member] = False  # not busy
+
+                    receivedMessages[member].append(msg)
+
+        return receivedMessages

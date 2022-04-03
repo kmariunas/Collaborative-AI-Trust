@@ -25,4 +25,3 @@ def rooms_match(last_message, msg):
     if last_message['room_name'] != msg['room_name']:
         return False
     return True
-

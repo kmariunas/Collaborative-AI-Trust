@@ -115,15 +115,6 @@ class GenericAgentTesting(BW4TBrain):
         return None, {}
 
     def find_action(self, state):
-        # returns an action based on the following ranking:
-        #   1. if goal block has been located, start going in its direction
-        #   2. if there are any closed doors, open them and search the rooms
-        #   3. start searching through open rooms
-        # check if a goal block has been located
-        # for block in self._not_found_yet:
-        #    if len(self._goal_blocks[block]['location']) != 0:
-        #        return Phase.PLAN_PATH_TO_BLOCK
-
         # find closed door that none of the agents searched
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
             self._filter = 'everyone'
@@ -430,81 +421,68 @@ class GenericAgentTesting(BW4TBrain):
         msg = None
         res = None
         if self._fix_block_order:
-            if Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
-                res = self.follow_path(state, Phase.GRAB_BLOCK)
-            elif Phase.GRAB_BLOCK == self._phase and state[self.agent_name]['location'] != self._goal_blocks["block0"][
-                "drop_off"]:
-
+            if Phase.PLAN_PATH_TO_DROP == self._phase:
+                block = self._blocks_to_fix.get()
+                res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.FOLLOW_PATH_TO_BLOCK)
+            elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
+                self.follow_path(state, Phase.GRAB_BLOCK)
+            elif Phase.GRAB_BLOCK == self._phase \
+                    and state[self.agent_name]['location'] != self._goal_blocks["block0"]["drop_off"]:
                 res = self.grab_block(Phase.DROP_BLOCK, state)
             elif Phase.DROP_BLOCK == self._phase:
                 res = self.drop_block(state, Phase.PLAN_PATH_TO_BLOCK)
-            else:
-                block = self._blocks_to_fix.get()
-                res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.FOLLOW_PATH_TO_BLOCK)
-
-        elif Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
-            res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
-            msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
-
-        elif Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
-            res = self.follow_path(state, Phase.OPEN_DOOR)
-
-        elif Phase.OPEN_DOOR == self._phase:
-            res = self.open_door(Phase.PLAN_ROOM_SEARCH)
-            msg = self._mb.create_message(MessageType.OPEN_DOOR, room_name=self._door['room_name'])
-
-        elif Phase.PLAN_PATH_TO_OPEN_DOOR == self._phase:
-            res = self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR)
-            msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
-
-        elif Phase.FOLLOW_PATH_TO_OPEN_DOOR == self._phase:
-            res = self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
-
-        elif Phase.PLAN_ROOM_SEARCH == self._phase:
-            res = self.plan_room_search(state, Phase.SEARCH_ROOM)
-            msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
-
-        elif Phase.SEARCH_ROOM == self._phase:
-            res = self.search_room(state, None)
-
-        elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
-            self.find_best_path(state)
-            res = self.plan_path(self._searching_for["location"], Phase.FOLLOW_PATH_TO_BLOCK)
-
-        elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
-            res = self.follow_path(state, Phase.GRAB_BLOCK)
-
-        elif Phase.GRAB_BLOCK == self._phase:
-            res = self.grab_block(Phase.PLAN_PATH_TO_DROP, state)
-
-            msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
-                                          block_vis=self._searching_for['visualization'],
-                                          location=self._searching_for['location'])
-
-
-        elif Phase.PLAN_PATH_TO_DROP == self._phase:
-            # if len(self._is_carrying) == 0:
-            #    res = self.find_action(state)
-            # else:
-            # print()
-            # print(self.agent_name)
-            # print("dropping:")
-            # print(self._is_carrying)
-
-            block, id = list(self._is_carrying)[0]
-            res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.RETURN_GOAL_BLOCK)
-
-        elif Phase.RETURN_GOAL_BLOCK == self._phase:
-            res = self.follow_path(state, Phase.DROP_BLOCK)
-
-        elif Phase.DROP_BLOCK == self._phase:
-            #msg = self._mb.create_message(MessageType.DROP_BLOCK,
-            #                              block_vis=self._searching_for["visualization"],
-            #                              location=state[self.agent_name]['location'])
-
-            res = self.drop_block(state, None)
         else:
-            raise Exception('phase might be None')
+            if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
+                res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
+                msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
+
+            elif Phase.FOLLOW_PATH_TO_CLOSED_DOOR == self._phase:
+                res = self.follow_path(state, Phase.OPEN_DOOR)
+
+            elif Phase.OPEN_DOOR == self._phase:
+                res = self.open_door(Phase.PLAN_ROOM_SEARCH)
+                msg = self._mb.create_message(MessageType.OPEN_DOOR, room_name=self._door['room_name'])
+
+            elif Phase.PLAN_PATH_TO_OPEN_DOOR == self._phase:
+                res = self.plan_path_to_open_door(state, Phase.FOLLOW_PATH_TO_OPEN_DOOR)
+                msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
+
+            elif Phase.FOLLOW_PATH_TO_OPEN_DOOR == self._phase:
+                res = self.follow_path(state, Phase.PLAN_ROOM_SEARCH)
+
+            elif Phase.PLAN_ROOM_SEARCH == self._phase:
+                res = self.plan_room_search(state, Phase.SEARCH_ROOM)
+                msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
+
+            elif Phase.SEARCH_ROOM == self._phase:
+                res = self.search_room(state, None)
+
+            elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
+                self.find_best_path(state)
+                res = self.plan_path(self._searching_for["location"], Phase.FOLLOW_PATH_TO_BLOCK)
+
+            elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
+                res = self.follow_path(state, Phase.GRAB_BLOCK)
+
+            elif Phase.GRAB_BLOCK == self._phase:
+                res = self.grab_block(Phase.PLAN_PATH_TO_DROP, state)
+
+                msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
+                                              block_vis=self._searching_for['visualization'],
+                                              location=self._searching_for['location'])
+
+
+            elif Phase.PLAN_PATH_TO_DROP == self._phase:
+                block, id = list(self._is_carrying)[0]
+                res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.RETURN_GOAL_BLOCK)
+
+            elif Phase.RETURN_GOAL_BLOCK == self._phase:
+                res = self.follow_path(state, Phase.DROP_BLOCK)
+
+            elif Phase.DROP_BLOCK == self._phase:
+                res = self.drop_block(state, None)
+        # else:
+        #     raise Exception('phase might be None')
 
         return res, msg
 
