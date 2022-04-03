@@ -115,13 +115,15 @@ class TrustSystem:
                         self._decrease_competence(team_member)
 
                 elif msg['type'] == MessageType.OPEN_DOOR:
-                    if self._od_contradiction(msg, tick):
+                    contradiction = self._od_contradiction(msg, tick)
+                    if contradiction == 1:
                         self._decrease_reliability(team_member)
+                    if contradiction == 2:
+                        self._decrease_competence(team_member)
 
                 elif msg['type'] == MessageType.FOUND_BLOCK:
                     self._increase_reliability(team_member)
 
-                # # TODO: maybe remove this
                 # elif msg['type'] == MessageType.FOUND_GOAL_BLOCK:
                 #     if self._fgb_contradiction(msg):
                 #         self._decrease_reliability(team_member)
@@ -227,22 +229,21 @@ class TrustSystem:
 
 
     def _od_contradiction(self, msg, current_tick):
-        """  Checks if there is a contradiction with the last message when an agent says it is opening some room door
-
-        @param msg: received message
-        @return: True if the agent said he moved to some room but is opening the door of another or if the message is not related to previous message
+        """
+        Checks if there is a contradiction with the last message when an agent says it is opening some room door
         """
         team_member = msg['from_id']
         last_message, tick = self._messages[team_member][-1]
 
         if last_message['type'] == MessageType.MOVE_TO_ROOM:
-            return not rooms_match(last_message, msg)
+            if not rooms_match(last_message, msg):
+                return 1
         # check if agent said they would search a room but did not
         # note: searching a room takes 5-6 seconds
         if last_message['type'] == MessageType.SEARCHING_ROOM and current_tick - tick < 5:
-            return True
+            return 2
 
-        return False
+        return 0
 
     def _fgb_contradiction(self, msg):
         """
