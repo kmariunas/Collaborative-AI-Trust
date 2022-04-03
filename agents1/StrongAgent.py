@@ -21,7 +21,7 @@ class StrongAgent(GenericAgentTesting):
         # check if the next goal_block has been located
         # next_block_id = min(int(self._searching_for[5]) + 1, 2)  # increment current block
         # searching_next = f"block{next_block_id}"
-        if len(self._is_carrying) == 2 or len(self._not_found_yet) == 0:
+        if len(self._is_carrying) == 2 or (len(self._is_carrying) > 0 and len(self._not_found_yet) == 0):
             return Phase.PLAN_PATH_TO_DROP
 
         found_goal_blocks = 0
@@ -76,7 +76,7 @@ class StrongAgent(GenericAgentTesting):
 
                 res = self.grab_block(Phase.DROP_BLOCK, state)
             elif Phase.DROP_BLOCK == self._phase:
-                res = self.drop_block(Phase.PLAN_PATH_TO_BLOCK)
+                res = self.drop_block(state, Phase.PLAN_PATH_TO_BLOCK)
             else:
                 block = self._blocks_to_fix.get()
                 # self._block_to_fix_id = id
@@ -136,24 +136,46 @@ class StrongAgent(GenericAgentTesting):
     #     self._is_carrying.add(self._searching_for["block"])
 
     #     return GrabObject.__name__, {'object_id': obj_id}
-    def drop_block(self, phase, block_delivered=True):
-
+    def drop_block(self,state, phase, block_delivered=True):
         action = None
-        if block_delivered and len(self._is_carrying) > 0:
-            block, id = self._is_carrying.pop()
-            self._currently_dropping = block
-            # self._blocks_to_fix.put((int(block[5]), id))
+        # gather any possible blocks that are already found
+        if len(self._get_rid_of_block) > 0:
+            block, id = self._get_rid_of_block.pop()
+            self._is_carrying.discard((block, id))
+            #msg = self._mb.create_message(MessageType.DROP_BLOCK,
+            #                              block_vis=self._goal_blocks[block]['visualization'],
+            #                              location=state[self.agent_name]['location'])
+            #self._sendMessage(msg)
             action = DropObject.__name__, {'object_id': id}
-            if len(self._not_found_yet) == 0:
-                self._fix_block_order = True
+            if len(self._get_rid_of_block)>0:
+                self.update_phase(Phase.DROP_BLOCK)
+            else:
+                return action
+        elif len(self._is_carrying)>0:
 
-            # block_num = min(2, int(self._searching_for[5]) + 1)
-            # self._searching_for = f"block{block_num}"
-        if len(self._is_carrying) > 0:
-            self.update_phase(Phase.PLAN_PATH_TO_DROP)
+            if block_delivered:
+
+                block, id = self._is_carrying.pop()
+                self._currently_dropping = block
+
+                msg = self._mb.create_message(MessageType.DROP_BLOCK,
+                                              block_vis=self._goal_blocks[block]['visualization'],
+                                              location=state[self.agent_name]['location'])
+                self._sendMessage(msg)
+                action = DropObject.__name__, {'object_id': id}
+                if len(self._not_found_yet) == 0:
+                    self._fix_block_order = True
+
+                # block_num = min(2, int(self._searching_for[5]) + 1)
+                # self._searching_for = f"block{block_num}"
+            if len(self._is_carrying) > 0:
+                self.update_phase(Phase.PLAN_PATH_TO_DROP)
+            else:
+                self.update_phase(phase)
+            return action
         else:
             self.update_phase(phase)
-        return action
+            return None
 
     def plan_path_to_closed_door(self, state, phase):
         """ Finds doors that are still closed and plans a path to them
@@ -229,3 +251,4 @@ class StrongAgent(GenericAgentTesting):
                     # index = np.argwhere(self._goal_blocks[block]["location"] == goal_block_combination[0])
                     # self._searching_for["id"] = self._goal_blocks[block]["id"][index]
                     self._searching_for["drop_off"] = drop_loc
+

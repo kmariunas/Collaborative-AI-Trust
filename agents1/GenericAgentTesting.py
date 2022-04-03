@@ -60,6 +60,8 @@ class GenericAgentTesting(BW4TBrain):
 
         self._grid_shape = None
 
+        self._get_rid_of_block = set()
+
     def initialize(self):
         super().initialize()
         self._mb = MessageBuilder(self.agent_name)
@@ -302,7 +304,13 @@ class GenericAgentTesting(BW4TBrain):
         Returns:
             GrabObject Action
         """
-
+        #print(self.agent_name)
+        print()
+        print(self.agent_name)
+        print("grabbing block")
+        print(self._is_carrying)
+        #print(self._not_found_yet)
+        #print()
         self.update_phase(phase)
         blocks_id = [block['obj_id'] for block in state.values() if
                      'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']
@@ -322,10 +330,12 @@ class GenericAgentTesting(BW4TBrain):
         self._is_carrying.add((self._searching_for["block"], blocks_id[0]))
 
         self._not_found_yet.discard(self._searching_for["block"])
+        print("after: ")
+        print(self._is_carrying)
 
         return GrabObject.__name__, {'object_id': blocks_id[0]}
 
-    def drop_block(self, phase, block_delivered=True):
+    def drop_block(self,state, phase, block_delivered=True):
         """ Drops the block under the agent.
 
         Args:
@@ -336,21 +346,47 @@ class GenericAgentTesting(BW4TBrain):
             updates the searching_for variable which indicates which goal block the agent is looking for
 
         Returns:
-            Drop Action
+            Drop Action or None
         """
 
-        block, id = self._is_carrying.pop()
-        # print("asfsdafads")
-        action = DropObject.__name__, {'object_id': id}
-        if block_delivered:
-            self.update_phase(phase)
-            if len(self._not_found_yet) == 0:
-                self._fix_block_order = True
-        else:
-            self.update_phase(None)
-            self._not_found_yet.add(block)
+        #gather any possible blocks that are already found
+        if len(self._get_rid_of_block) > 0:
+            block, id = self._get_rid_of_block.pop()
+            self._is_carrying.discard((block, id))
 
-        return action
+            action = DropObject.__name__, {'object_id': id}
+            msg = self._mb.create_message(MessageType.DROP_BLOCK,
+                                          block_vis=self._goal_blocks[block]['visualization'],
+                                          location=state[self.agent_name]['location'])
+            self._sendMessage(msg)
+            if len(self._get_rid_of_block)>0:
+                self.update_phase(Phase.DROP_BLOCK)
+            else:
+                return action
+
+        elif len(self._is_carrying)>0:
+
+            block, id = self._is_carrying.pop()
+            msg = self._mb.create_message(MessageType.DROP_BLOCK,
+                                          block_vis=self._goal_blocks[block]['visualization'],
+                                          location=state[self.agent_name]['location'])
+            self._sendMessage(msg)
+            action = DropObject.__name__, {'object_id': id}
+            if block_delivered:
+
+                if len(self._not_found_yet) == 0:
+                    self._fix_block_order = True
+                self.update_phase(phase)
+            else:
+                self._blocks_to_fix = Queue()
+                self._blocks_to_fix.put("block1")
+                self._blocks_to_fix.put("block2")
+                self.update_phase(None)
+                self._not_found_yet.add(block)
+
+            return action
+        else:
+            return None
 
     def initialize_state(self, state):
         """ Initialize team members and read goal blocks
@@ -394,12 +430,10 @@ class GenericAgentTesting(BW4TBrain):
                 res = self.follow_path(state, Phase.GRAB_BLOCK)
             elif Phase.GRAB_BLOCK == self._phase and state[self.agent_name]['location'] != self._goal_blocks["block0"][
                 "drop_off"]:
-                blocks_id = [block['obj_id'] for block in state.values() if
-                             'class_inheritance' in block and 'CollectableBlock' in block['class_inheritance']
-                             and block['is_collectable'] and block['location'] == state[self.agent_name]['location']]
+
                 res = self.grab_block(Phase.DROP_BLOCK, state)
             elif Phase.DROP_BLOCK == self._phase:
-                res = self.drop_block(Phase.PLAN_PATH_TO_BLOCK)
+                res = self.drop_block(state,Phase.PLAN_PATH_TO_BLOCK)
             else:
                 block = self._blocks_to_fix.get()
                 res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.FOLLOW_PATH_TO_BLOCK)
@@ -451,6 +485,11 @@ class GenericAgentTesting(BW4TBrain):
             # if len(self._is_carrying) == 0:
             #    res = self.find_action(state)
             # else:
+            print()
+            print(self.agent_name)
+            print("dropping:")
+            print(self._is_carrying)
+
             block, id = list(self._is_carrying)[0]
             res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.RETURN_GOAL_BLOCK)
 
@@ -462,8 +501,7 @@ class GenericAgentTesting(BW4TBrain):
                                           block_vis=self._searching_for["visualization"],
                                           location=state[self.agent_name]['location'])
 
-            res = self.drop_block(None)
-
+            res = self.drop_block(state, None)
         else:
             raise Exception('phase might be None')
 
@@ -505,10 +543,11 @@ class GenericAgentTesting(BW4TBrain):
             self.update_phase(self.find_action(state))
 
         res, msg = self.phase_action(state)
-
-        self._sendMessage(msg)
         if (res == None):
-            pass
+            self.update_phase(self.find_action(state))
+            res, msg = self.phase_action(state)
+        self._sendMessage(msg)
+
         return res
 
     def _sendMessage(self, msg):
@@ -544,7 +583,7 @@ class GenericAgentTesting(BW4TBrain):
             msg = MessageBuilder.process_message(msg)
 
             for member in teamMembers:
-                if msg['from_id'] == member:
+                if msg['from_id'] == member or True:
                     # TODO: now, the agent assumes all messages can be trusted
                     # todo: update only if you trust the agent
                     # update goal block location
@@ -563,15 +602,34 @@ class GenericAgentTesting(BW4TBrain):
 
                     # TODO: fix agent is still looking or blocks that have been dropped
                     elif msg['type'] is MessageType.DROP_BLOCK:
+                        #print(msg)
+                        #print(self.agent_name)
+                        #print("carrying:")
+                        #print(self._is_carrying)
+                        #print("not found before:")
+                        #print(self._not_found_yet)
                         # block, id = list(self._is_carrying)[0]
                         drop_off_locs = [block['drop_off'] for block in self._goal_blocks.values()]
+                        #print(drop_off_locs)
+                        #print(msg['location'])
                         if msg['location'] in drop_off_locs:
                             # find block
                             for key, block in self._goal_blocks.items():
                                 if visualizations_match(block['visualization'], msg['visualization']):
-                                    self._not_found_yet.remove(key)
-                            if len(self._is_carrying) == 1:
-                                self._phase = Phase.DROP_BLOCK
+                                    #print(key)
+                                    #print(self._not_found_yet)
+                                    self._not_found_yet.discard(key)
+                                    #print("after:")
+                                    #print(self._not_found_yet)
+
+                            if len(self._is_carrying) > 0:
+                                for block, id in self._is_carrying:
+                                    if self._goal_blocks[block]["drop_off"] == msg['location']:
+                                        self._get_rid_of_block.add((block, id))
+                                        self._phase = Phase.DROP_BLOCK
+                            #print("not found after:")
+                            #print(self._not_found_yet)
+                        #print()
                         # self._phase = Phase.DROP_BLOCK
 
                     receivedMessages[member].append(msg)
