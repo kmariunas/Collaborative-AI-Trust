@@ -10,16 +10,16 @@ from agents1.util import rooms_match, visualizations_match, locations_match
 
 class TrustSystemEncoder(JSONEncoder):
     def default(self, o):
-        return o.__dict__
+        return o._dict_
 
 
 def _update_score(own_score, com_score):
-    acc_own, tot_own = own_score        # accurate and total experiences
+    acc_own, tot_own = own_score  # accurate and total experiences
     acc_com, tot_com = com_score
 
     # the communicated score has more uncertainty than our score
     if tot_com < 0.8 * acc_own:
-        return own_score        # so dont update our score
+        return own_score  # so dont update our score
 
     if tot_own <= tot_com:
         common_denominator = tot_com
@@ -39,7 +39,7 @@ def _update_score(own_score, com_score):
     #              common_den]
     avg = math.floor(
         ((common_denominator * scale / old_denominator) + keep)
-        / 2)    # take floor of average
+        / 2)  # take floor of average
 
     return (avg, common_denominator)
 
@@ -105,7 +105,7 @@ class TrustSystem:
             for msg in messages:
                 if msg['type'] == MessageType.REPUTATION and self._is_reliable(msg['from_id']):
                     self._update_reputation(msg['scores'])
-                
+
                 # update reliability and competence of team member
                 elif msg['type'] == MessageType.GOAL_BLOCKS:
                     self._increase_reliability(team_member)
@@ -115,13 +115,15 @@ class TrustSystem:
                         self._decrease_competence(team_member)
 
                 elif msg['type'] == MessageType.OPEN_DOOR:
-                    if self._od_contradiction(msg, tick):
+                    contradiction = self._od_contradiction(msg, tick)
+                    if contradiction == 1:
                         self._decrease_reliability(team_member)
+                    if contradiction == 2:
+                        self._decrease_competence(team_member)
 
                 elif msg['type'] == MessageType.FOUND_BLOCK:
                     self._increase_reliability(team_member)
 
-                # # TODO: maybe remove this
                 # elif msg['type'] == MessageType.FOUND_GOAL_BLOCK:
                 #     if self._fgb_contradiction(msg):
                 #         self._decrease_reliability(team_member)
@@ -225,24 +227,22 @@ class TrustSystem:
 
         return False
 
-
     def _od_contradiction(self, msg, current_tick):
-        """  Checks if there is a contradiction with the last message when an agent says it is opening some room door
-
-        @param msg: received message
-        @return: True if the agent said he moved to some room but is opening the door of another or if the message is not related to previous message
+        """
+        Checks if there is a contradiction with the last message when an agent says it is opening some room door
         """
         team_member = msg['from_id']
         last_message, tick = self._messages[team_member][-1]
 
         if last_message['type'] == MessageType.MOVE_TO_ROOM:
-            return not rooms_match(last_message, msg)
+            if not rooms_match(last_message, msg):
+                return 1
         # check if agent said they would search a room but did not
         # note: searching a room takes 5-6 seconds
         if last_message['type'] == MessageType.SEARCHING_ROOM and current_tick - tick < 5:
-            return True
+            return 2
 
-        return False
+        return 0
 
     def _fgb_contradiction(self, msg):
         """

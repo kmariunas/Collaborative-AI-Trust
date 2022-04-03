@@ -10,10 +10,9 @@ from matrx.agents.agent_utils.state_tracker import StateTracker
 
 from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
-from agents1.TrustSystem import TrustSystem
 from agents1.util import manhattan_distance, locations_match
 from bw4t.BW4TBrain import BW4TBrain
-
+from agents1.TrustSystem import TrustSystem
 
 def closest_point_idx(point, list_of_points):
     # manhattan distance
@@ -507,7 +506,7 @@ class GenericAgent(BW4TBrain):
                 and pmsg['type'] is not MessageType.HELP_CARRY:
             self.send_message(msg)
             self._messages.add(msg.content)
-            # print(self.agent_name, msg.contenttent)
+
         elif msg.content not in self._messages:
             self.send_message(msg)
             self._messages.add(msg.content)
