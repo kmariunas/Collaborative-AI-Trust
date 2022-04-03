@@ -36,7 +36,7 @@ import warnings
 # amount of agents in one run
 random_seed = 1 #random.randint(0, 42000)
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 number_of_agents = 2, 6 # from - to, the number of agents in each configuration is selkected randomly
 number_of_combinations = 5  # number of random agent combinations
