@@ -10,6 +10,11 @@ from bw4t.statistics import Statistics
 from agents1.BW4TBaselineAgent import BaseLineAgent
 from agents1.BW4THuman import Human
 from agents1.LiarAgent import LiarAgent
+from agents1.GenericAgent import GenericAgent
+from agents1.StrongAgent import StrongAgent
+from agents1.LazyAgent import LazyAgent
+from agents1.ColorblindAgent import ColorblindAgent
+
 from typing import Final, List
 from matrx.actions.move_actions import MoveEast, MoveSouth, MoveWest
 from matrx.actions import MoveNorth, OpenDoorAction, CloseDoorAction
@@ -23,15 +28,73 @@ from agents1.BW4THuman import Human
 from bw4t.CollectionGoal import CollectionGoal
 from bw4t.BW4TLogger import BW4TLogger
 from bw4t.BW4THumanBrain import HumanBrain
+import warnings
+
+#TODO: 1. std, 2. fix success rate, 3. graphs? 4. sum all the results for individual agents as well, 5. prepare all the templates for agents
+# TODO: do no return actions for thins like plan path
+
+# amount of agents in one run
+random_seed = random.randint(0, 42000)
+
+DEBUG_MODE = False
+
+number_of_agents = 2, 10 # from - to, the number of agents in each configuration is selkected randomly
+number_of_combinations = 3  # number of random agent combinations
+number_of_runs = 5  # runs for each combination
+filename = 'data.json'  # result file
+run_matrx_api = DEBUG_MODE
+run_matrx_visualizer = DEBUG_MODE
+matrx_paused = DEBUG_MODE
+deadline = 600 # max number of ticks
+tick_duration = 0 # 0 = fastest
+
+agent_pool = {
+    "baseline": {
+        "agent": {'name': 'baseline', 'botclass': BaseLineAgent, 'settings': {}},
+        "join_prob": 0.7,
+        "max": 0,
+        "added": 0
+    },
+    "generic": {  # name here has to match name in agent_pool[agent_name][agent]
+        "agent": {'name': 'generic', 'botclass': GenericAgent, 'settings': {}},
+        "join_prob": 0.5,  # probability that this agent ends up in the lineup
+        "max": 10,  # max number of this agent type
+        "added": 0  # Do not change this one
+    },
+    "strong": {  # name here has to match name in agent_pool[agent_name][agent]
+        "agent": {'name': 'strong', 'botclass': StrongAgent, 'settings': {}},
+        "join_prob": 0.5,  # probability that this agent ends up in the lineup
+        "max": 0,  # max number of this agent type
+        "added": 0  # Do not change this one
+    },
+    "colorblind": {  # name here has to match name in agent_pool[agent_name][agent]
+        "agent": {'name': 'colorblind', 'botclass': ColorblindAgent, 'settings': {}},
+        "join_prob": 0.5,  # probability that this agent ends up in the lineup
+        "max": 0,  # max number of this agent type
+        "added": 0  # Do not change this one
+    },
+    "liar": {  # name here has to match name in agent_pool[agent_name][agent]
+        "agent": {'name': 'liar', 'botclass': LiarAgent, 'settings': {}},
+        "join_prob": 0.5,  # probability that this agent ends up in the lineup
+        "max": 0,  # max number of this agent type
+        "added": 0  # Do not change this one
+    },
+    "lazy": {  # name here has to match name in agent_pool[agent_name][agent]
+        "agent": {'name': 'lazy', 'botclass': LazyAgent, 'settings': {}},
+        "join_prob": 0.5,  # probability that this agent ends up in the lineup
+        "max": 0,  # max number of this agent type
+        "added": 0  # Do not change this one
+    },
+}
 
 BENCHMARK_WORLDSETTINGS: dict = {
-    'deadline': 3000,  # Ticks after which world terminates anyway
-    'tick_duration': 0.1,  # Set to 0 for fastest possible runs.
-    'random_seed': 1,
+    'deadline': deadline,  # Ticks after which world terminates anyway
+    'tick_duration': tick_duration,  # Set to 0 for fastest possible runs.
+    'random_seed': random_seed,
     'verbose': False,
-    'matrx_paused': False,
-    'run_matrx_api': False,  # If you want to allow web connection
-    'run_matrx_visualizer': False,  # if you want to allow web visualizer
+    'matrx_paused': matrx_paused,
+    'run_matrx_api': run_matrx_api,  # If you want to allow web connection
+    'run_matrx_visualizer': run_matrx_visualizer,  # if you want to allow web visualizer
 
     'key_action_map': {  # For the human agents
         'w': MoveNorth.__name__,
@@ -62,7 +125,6 @@ BENCHMARK_WORLDSETTINGS: dict = {
     'other_sense_range': np.inf,  # the range with which agents detect other objects (walls, doors, etc.)
     'agent_memory_decay': 5,  # we want to memorize states for seconds / tick_duration ticks
     'fov_occlusion': True  # true if walls block vision. Not sure if this works at all.
-
 }
 
 def make_agent_combinations(agent_pool, agent_number, number_of_combinations):
@@ -93,13 +155,6 @@ def make_agent_combinations(agent_pool, agent_number, number_of_combinations):
     return agent_combinations, setup
 
 if __name__ == "__main__":
-    #amount of agents in one run
-    agent_number = 2
-    number_of_combinations = 1 #number of random agent combinations
-    number_of_runs = 5 # runs for each combination
-    filename = 'data.json' # result file
-
-    total_runs = number_of_combinations * number_of_runs
 
     agent_pool = {
         "strongagent": { # name here has to match name in agent_pool[agent_name][agent]
@@ -116,13 +171,14 @@ if __name__ == "__main__":
         },
     }
 
-    agent_combinations, setup = make_agent_combinations(agent_pool, agent_number, number_of_combinations)
+    agent_combinations, setup = make_agent_combinations(agent_pool, random.randint(number_of_agents[0], number_of_agents[1]), number_of_combinations)
+
 
     games = {
         "results": None
     }
 
-    strat_ticks = 0
+    strat_ticks = []
     strat_success_rate = 0
     strat_moves = 0
     strat_agent_messages = {
@@ -142,18 +198,23 @@ if __name__ == "__main__":
         total_agent_messages = None
         total_agent_drops = None
         total_agent_moves = None
-        total_ticks = 0
+        total_ticks = []
 
         for i in range(0, number_of_runs):
             print(f"COMBINATION: {idx} RUN: {i}", flush=True)
+            random_seed = random.randint(0, 42000)
+            BENCHMARK_WORLDSETTINGS['random_seed'] = random_seed
+
             world=BW4TWorld(agent_combination,worldsettings=BENCHMARK_WORLDSETTINGS).run()
             results = Statistics(world.getLogger().getFileName())
             print(results)
 
-            total_ticks += int(results.getLastTick())
+            total_ticks.append(int(results.getLastTick())) # add tick to list
 
-            if results.isSucces():
+            if results.isSucces() == 'True':
                 success_rate += 1
+
+            print(success_rate)
 
             if total_agent_messages is None:
                 total_agent_drops = results._drops
@@ -178,11 +239,14 @@ if __name__ == "__main__":
             strat_agent_drops[drops_key.rstrip("0123456789")] += drops_value
 
 
-        games[f"game_{idx}"] = {
+        games[f"combination_{idx}"] = {
             "setup": results.getAgents(),
+            "seed": random_seed,
             "success_rate": success_rate / number_of_runs,
             "avg_moves": sum(total_agent_moves.values()) / number_of_runs,
-            "avg_ticks": total_ticks / number_of_runs,
+            "avg_ticks": sum(total_ticks) / number_of_runs,
+            "game_ticks": total_ticks,
+            "tick_std": np.std(total_ticks),
             "avg_agent_messages": {key : total_agent_messages[key] / number_of_runs for key in total_agent_messages},
             "avg_agent_drops": {key : total_agent_drops[key] / number_of_runs for key in total_agent_drops},
             "avg_agent_moves": {key : total_agent_moves[key] / number_of_runs for key in total_agent_moves},
@@ -192,7 +256,8 @@ if __name__ == "__main__":
         "agents": list(agent_pool.keys()),
         "success_rate": strat_success_rate / total_runs,
         "avg_moves": strat_moves / total_runs,
-        "avg_ticks": strat_ticks / total_runs,
+        "avg_ticks": sum(strat_ticks) / total_runs,
+        "tick_std": np.std(strat_ticks),
         "avg_agent_messages": {key : strat_agent_messages[key] / total_runs for key in strat_agent_messages},
         "avg_agent_drops": {key: strat_agent_drops[key] / total_runs for key in strat_agent_drops},
         "avg_agent_moves": {key: strat_agent_moves[key] / total_runs for key in strat_agent_moves},
