@@ -538,16 +538,15 @@ class GenericAgentTesting(BW4TBrain):
         if msg is None:
             return
 
+
         pmsg = MessageBuilder.process_message(msg)
 
         if pmsg['type'] is not MessageType.FOUND_GOAL_BLOCK and pmsg['type'] is not MessageType.FOUND_BLOCK:
             self.send_message(msg)
             self._messages.add(msg.content)
-            # print(self.agent_name, msg.content)
         elif msg.content not in self._messages:
             self.send_message(msg)
             self._messages.add(msg.content)
-            # print(self.agent_name, msg.content)
 
 
     def _processMessages(self, received_messages):
@@ -614,12 +613,7 @@ class GenericAgentTesting(BW4TBrain):
 
                     # TODO: fix agent is still looking or blocks that have been dropped
                     elif msg['type'] is MessageType.DROP_BLOCK:
-                        # print(msg)
-                        # print(self.agent_name)
-                        # print("carrying:")
-                        # print(self._is_carrying)
-                        # print("not found before:")
-                        # print(self._not_found_yet)
+
                         # block, id = list(self._is_carrying)[0]
                         drop_off_locs = [block['drop_off'] for block in self._goal_blocks.values()]
                         # print(drop_off_locs)

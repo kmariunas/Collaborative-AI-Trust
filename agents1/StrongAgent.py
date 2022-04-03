@@ -94,7 +94,7 @@ class StrongAgent(GenericAgentTesting):
                                           block_vis=self._searching_for['visualization'],
                                           location=self._searching_for['location'])
 
-        if res is None:
+        if res[0] is None:
             res, msg = super().phase_action(state)
 
         return res, msg

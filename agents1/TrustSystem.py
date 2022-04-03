@@ -52,8 +52,8 @@ class TrustSystem:
         self._goal_blocks = goal_blocks
         self._drop_off_locations = drop_off_locations
         self._messages = self._init_messages()  # dict with agent names as keys, and list of (msg, tick) as value
-        self._team_members = self.read_memory_file()
 
+        self._team_members = self.read_memory_file()
         self.reliability_threshold = 0.6
         self.competence_threshold = 0.6
 
@@ -72,7 +72,8 @@ class TrustSystem:
                 "competence": (0, 1),
                 "reliability": (0, 1)
             }
-        self.write_file(agents_trust)
+        if len(agents_trust.keys()) != 0:
+            self.write_file(agents_trust)
         return agents_trust
 
     def trust_message(self, msg):
@@ -170,6 +171,8 @@ class TrustSystem:
         return res
 
     def write_file(self, agent_trust=None):
+        if len(self._team_members_names) == 0:
+            return
         file_path = self._agent_name + ".json"
         with open(file_path, "w") as file:
             if agent_trust:

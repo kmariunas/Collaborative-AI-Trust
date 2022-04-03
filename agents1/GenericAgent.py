@@ -510,7 +510,6 @@ class GenericAgent(BW4TBrain):
         elif msg.content not in self._messages:
             self.send_message(msg)
             self._messages.add(msg.content)
-            # print(self.agent_name, msg.content)
 
     def _parse_messages(self):
         """
