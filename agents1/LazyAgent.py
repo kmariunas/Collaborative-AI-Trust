@@ -170,15 +170,15 @@ class LazyAgent(GenericAgent):
         """
         if self._finish_action is None:
             if random.uniform(0, 1) < 0.5:
-                print('-- finish action --')
+                # print('-- finish action --')
                 self._finish_action = True
             else:
-                print('-- will not finish action --')
+                # print('-- will not finish action --')
                 self._finish_action = False
 
         if self._finish_action is False:
             if random.uniform(0, 1) < abandon_this_step_prob:
-                print('--- abandon now --')
+                # print('--- abandon now --')
                 # stop following path
                 self._finish_action = None
                 return True
@@ -194,12 +194,14 @@ class LazyAgent(GenericAgent):
             # delegate task to helper agents
             # first try the free agents
 
-            if key in self._searching_for:
+            if key in self._searching_for and len(list(self._helper_agents.keys())) != 0:
                 available_helpers = [helper for helper, busy in self._helper_agents.items() if busy is False]
                 if len(available_helpers) != 0:
                     to_id = random.choice(available_helpers)
                 else:
+                    print(list(self._helper_agents.keys()))
                     to_id = random.choice(list(self._helper_agents.keys()))
+
                 msg = self._mb.create_message(MessageType.HELP_CARRY,
                                               block_vis=block,
                                               block_id=obj_id,
@@ -250,8 +252,9 @@ class LazyAgent(GenericAgent):
                                 self._searching_for.remove(key)
                     # For Helpers
                     elif msg['type'] is MessageType.CAN_HELP:
-                        self._helper_agents[member] = False  # not busy
 
+                        self._helper_agents[member] = False  # not busy
+                        print("HERE:", self._helper_agents, member)
                     receivedMessages[member].append(msg)
 
         return receivedMessages

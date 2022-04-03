@@ -34,6 +34,7 @@ class BW4TBrain(BW4TAgentBrain, ABC):
         
     @final
     def decide_on_action(self, state:State):
+        # print(self.agent_name, "---------", flush=True)
         act,params = self.decide_on_bw4t_action(state)  
         params['grab_range']=1
         # Max objects should be changed for the strong agent

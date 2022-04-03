@@ -128,7 +128,7 @@ class LiarAgent(GenericAgentTesting):
 
         # print("Liar:", msg.content)
 
-        print(self.agent_name, msg.content)
+        # print(self.agent_name, msg.content)
         return self.send_message(msg)
 
     def find_action(self, state):

@@ -373,7 +373,7 @@ class GenericAgentTesting(BW4TBrain):
 
             return action
         else:
-            return None
+            return None, {}
 
     def initialize_trust_system(self):
         drop_off_locations = [block['drop_off'] for block in self._goal_blocks.values()]
@@ -543,11 +543,11 @@ class GenericAgentTesting(BW4TBrain):
         if pmsg['type'] is not MessageType.FOUND_GOAL_BLOCK and pmsg['type'] is not MessageType.FOUND_BLOCK:
             self.send_message(msg)
             self._messages.add(msg.content)
-            print(self.agent_name, msg.content)
+            # print(self.agent_name, msg.content)
         elif msg.content not in self._messages:
             self.send_message(msg)
             self._messages.add(msg.content)
-            print(self.agent_name, msg.content)
+            # print(self.agent_name, msg.content)
 
 
     def _processMessages(self, received_messages):

@@ -34,8 +34,7 @@ class ColorblindAgent(GenericAgent):
             if member != self.agent_name and member not in self._teamMembers:
                 self._teamMembers.append(member)
 
-        msg = self._mb.create_message(MessageType.CAN_HELP)
-        self._sendMessage(msg)
+        self._sendMessage(self._mb.create_message(MessageType.CAN_HELP))
 
         self._goal_blocks = {}
 

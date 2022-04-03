@@ -507,11 +507,11 @@ class GenericAgent(BW4TBrain):
                 and pmsg['type'] is not MessageType.HELP_CARRY:
             self.send_message(msg)
             self._messages.add(msg.content)
-            print(self.agent_name, msg.content)
+            # print(self.agent_name, msg.contenttent)
         elif msg.content not in self._messages:
             self.send_message(msg)
             self._messages.add(msg.content)
-            print(self.agent_name, msg.content)
+            # print(self.agent_name, msg.content)
 
     def _parse_messages(self):
         """

@@ -34,7 +34,7 @@ import warnings
 # TODO: do no return actions for thins like plan path
 
 # amount of agents in one run
-random_seed = random.randint(0, 42000)
+random_seed = 1 #random.randint(0, 42000)
 
 DEBUG_MODE = False
 
@@ -42,9 +42,9 @@ number_of_agents = 2, 6 # from - to, the number of agents in each configuration 
 number_of_combinations = 5  # number of random agent combinations
 number_of_runs = 20  # runs for each combination
 filename = 'colorlazy.json'  # result file
-run_matrx_api = DEBUG_MODE
-run_matrx_visualizer = DEBUG_MODE
-matrx_paused = DEBUG_MODE
+run_matrx_api = False
+run_matrx_visualizer = False
+matrx_paused = False
 deadline = 1000 # max number of ticks
 tick_duration = 0 # 0 = fastest
 
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         for i in range(0, number_of_runs):
             print(f"COMBINATION: {idx} RUN: {i}", flush=True)
             random_seed = random.randint(0, 42000)
-            BENCHMARK_WORLDSETTINGS['random_seed'] = random_seed
+            # BENCHMARK_WORLDSETTINGS['random_seed'] = random_seed
 
             world=BW4TWorld(agent_combination,worldsettings=BENCHMARK_WORLDSETTINGS).run()
             results = Statistics(world.getLogger().getFileName())
