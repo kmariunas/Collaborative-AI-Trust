@@ -35,14 +35,14 @@ random_seed = random.randint(0, 42000)
 
 DEBUG_MODE = False
 
-agent_number = 1
-number_of_combinations = 2  # number of random agent combinations
+number_of_agents = 2, 10 # from - to, the number of agents in each configuration is selkected randomly
+number_of_combinations = 3  # number of random agent combinations
 number_of_runs = 5  # runs for each combination
 filename = 'data.json'  # result file
 run_matrx_api = DEBUG_MODE
 run_matrx_visualizer = DEBUG_MODE
 matrx_paused = DEBUG_MODE
-deadline = 1500 # max number of ticks
+deadline = 600 # max number of ticks
 tick_duration = 0 # 0 = fastest
 
 agent_pool = {
@@ -55,7 +55,7 @@ agent_pool = {
     "generic": {  # name here has to match name in agent_pool[agent_name][agent]
         "agent": {'name': 'generic', 'botclass': GenericAgent, 'settings': {}},
         "join_prob": 0.5,  # probability that this agent ends up in the lineup
-        "max": 1,  # max number of this agent type
+        "max": 10,  # max number of this agent type
         "added": 0  # Do not change this one
     },
     "strong": {  # name here has to match name in agent_pool[agent_name][agent]
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     # warnings.filterwarnings("ignore", category=DeprecationWarning)
     total_runs = number_of_combinations * number_of_runs
 
-    agent_combinations, setup = make_agent_combinations(agent_pool, agent_number, number_of_combinations)
+    agent_combinations, setup = make_agent_combinations(agent_pool, random.randint(number_of_agents[0], number_of_agents[1]), number_of_combinations)
 
     games = {
         "results": None
@@ -185,7 +185,8 @@ if __name__ == "__main__":
 
         for i in range(0, number_of_runs):
             print(f"COMBINATION: {idx} RUN: {i}", flush=True)
-            BENCHMARK_WORLDSETTINGS['random_seed'] = random.randint(0, 42000)
+            random_seed = random.randint(0, 42000)
+            BENCHMARK_WORLDSETTINGS['random_seed'] = random_seed
 
             world=BW4TWorld(agent_combination,worldsettings=BENCHMARK_WORLDSETTINGS).run()
             results = Statistics(world.getLogger().getFileName())
@@ -223,6 +224,7 @@ if __name__ == "__main__":
 
         games[f"combination_{idx}"] = {
             "setup": results.getAgents(),
+            "seed": random_seed,
             "success_rate": success_rate / number_of_runs,
             "avg_moves": sum(total_agent_moves.values()) / number_of_runs,
             "avg_ticks": sum(total_ticks) / number_of_runs,
