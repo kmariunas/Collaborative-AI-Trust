@@ -12,6 +12,7 @@ from agents1.Message import MessageBuilder, MessageType
 from agents1.Phase import Phase
 from agents1.util import manhattan_distance
 from bw4t.BW4TBrain import BW4TBrain
+from queue import Queue
 
 
 def closest_point_idx(point, list_of_points):
@@ -50,6 +51,10 @@ class GenericAgent(BW4TBrain):
         self._mb = None  # message builder
         self._previous_phase = None
         self._is_carrying = set()
+
+        self._fix_block_order = False
+        self._blocks_to_fix = ["block1", "block2"]
+
 
     def initialize(self):
         super().initialize()
@@ -284,6 +289,7 @@ class GenericAgent(BW4TBrain):
         return None, {}
 
     def grab_block(self, obj_id, phase):
+        # TODO: fix if block is not there
         """ Grabs block
 
         Args:
@@ -300,7 +306,7 @@ class GenericAgent(BW4TBrain):
 
         return GrabObject.__name__, {'object_id': obj_id}
 
-    def drop_block(self, phase, block_delivered=True):
+    def drop_block(self, phase, state, block_delivered=True):
         """ Drops the block under the agent.
 
         Args:
@@ -315,7 +321,13 @@ class GenericAgent(BW4TBrain):
         """
         self.update_phase(phase)
         action = DropObject.__name__, {'object_id': self._goal_blocks[self._searching_for[0]]["id"]}
-        self._is_carrying.discard(self._searching_for[0])
+
+        # send message
+        if len(self._is_carrying) != 0:
+            msg = self._mb.create_message(MessageType.DROP_BLOCK,
+                                          block_vis=self._goal_blocks[self._is_carrying.pop()]["visualization"],
+                                          location=state[self.agent_name]['location'])
+            self._sendMessage(msg)
 
         if block_delivered:
             # block_num = min(2, int(self._searching_for[5]) + 1)
@@ -353,7 +365,25 @@ class GenericAgent(BW4TBrain):
     def phase_action(self, state):
         msg = None
 
-        if Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
+        if self._fix_block_order:
+            if Phase.PLAN_PATH_TO_DROP == self._phase:
+                block = self._blocks_to_fix[0]
+                res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.FOLLOW_PATH_TO_BLOCK)
+            elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
+                res = self.follow_path(state, Phase.GRAB_BLOCK)
+            elif Phase.GRAB_BLOCK == self._phase:
+                res = self.grab_block(Phase.DROP_BLOCK, state)
+                block = self._blocks_to_fix.pop(0)
+                msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
+                                              block_vis=self._goal_blocks[block]['visualization'],
+                                              location=state[self.agent_name]['location'])
+            elif Phase.DROP_BLOCK == self._phase:
+                # msg = self._mb.create_message(MessageType.DROP_BLOCK,
+                #                               block_vis=self._goal_blocks[self._is_carrying[0]]["visualization"],
+                #                               location=state[self.agent_name]['location'])
+                res = self.drop_block(Phase.PLAN_PATH_TO_BLOCK, state)
+
+        elif Phase.PLAN_PATH_TO_CLOSED_DOOR == self._phase:
             res = self.plan_path_to_closed_door(state, Phase.FOLLOW_PATH_TO_CLOSED_DOOR)
             msg = self._mb.create_message(MessageType.MOVE_TO_ROOM, room_name=self._door['room_name'])
 
@@ -397,10 +427,10 @@ class GenericAgent(BW4TBrain):
             res = self.follow_path(state, Phase.DROP_BLOCK)
 
         elif Phase.DROP_BLOCK == self._phase:
-            msg = self._mb.create_message(MessageType.DROP_BLOCK,
-                                          block_vis=self._goal_blocks[self._searching_for[0]]["visualization"],
-                                          location=state[self.agent_name]['location'])
-            res = self.drop_block(None)
+            # msg = self._mb.create_message(MessageType.DROP_BLOCK,
+            #                               block_vis=self._goal_blocks[self._searching_for[0]]["visualization"],
+            #                               location=state[self.agent_name]['location'])
+            res = self.drop_block(None, state)
 
         else:
             raise Exception('phase might be None')

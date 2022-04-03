@@ -50,7 +50,7 @@ class LazyAgent(GenericAgent):
             # print('--- abandon ---')
             # drop block if agent is carrying one
             if self._phase is Phase.RETURN_GOAL_BLOCK:
-                return self.drop_block(None, block_delivered=False)
+                return self.drop_block(None, state, block_delivered=False)
             self.update_phase(None)
             return None, {}
 
@@ -73,8 +73,15 @@ class LazyAgent(GenericAgent):
         if len(self._is_carrying) == 1:
             return Phase.PLAN_PATH_TO_DROP
 
+        # if all the blocks have been delivered, rearrange them
+        if len(self._searching_for) == 0:
+            self._fix_block_order = True
+            return Phase.PLAN_PATH_TO_DROP
+
         # if the next block has been located, start going in its direction
-        if self._goal_blocks[self._searching_for[0]]['location']:
+        # if the previous action was not delivering the goal block to its location
+        if self._goal_blocks[self._searching_for[0]]['location'] \
+                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK:
             return Phase.PLAN_PATH_TO_BLOCK
 
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
