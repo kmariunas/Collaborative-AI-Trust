@@ -1,22 +1,21 @@
 import random
 from typing import Dict
 
-from agents1.GenericAgentTesting import GenericAgentTesting
+from agents1.GenericAgent import GenericAgent
 from agents1.Phase import Phase
 
 
-class LazyAgent(GenericAgentTesting):
+class LazyAgent(GenericAgent):
 
     def __init__(self, settings: Dict[str, object]):
         super().__init__(settings, Phase.PLAN_PATH_TO_CLOSED_DOOR)
         self._finish_action = None
 
-    def search_room(self, state, phase):
+    def search_room(self, state):
         """ After each search agent moves to the waypoint given by @plan_room_search.
 
         Args:
             state: matrx state perceived by the agent.
-            phase: Next phase if the goal block is found in the room
 
         Note:
             Once the agent searches the entire room, if it has found a block it is looking for, it will set the phase
@@ -30,7 +29,7 @@ class LazyAgent(GenericAgentTesting):
             self.update_phase(None)
             return None, {}
 
-        action, _ = super().search_room(state, phase)
+        action, _ = super().search_room(state)
 
         if action is None:
             self._finish_action = None
@@ -63,34 +62,19 @@ class LazyAgent(GenericAgentTesting):
         # TODO: update this stuff
         """
         Method returns an action, different from the previous one, based on the following ranking:
-            # 1. if you're carrying a goal block that has already been delivered, drop the block
+            1. if agent is carrying goal block, deliver it
             1. if goal block has been located, start going in its direction
             2. if there are any closed doors that no one has explored, explore them
             3. if there are any closed doors that the agent has not explored, explore them
             4. if there are any rooms that the agent has not explored, explore them
             5. explore random room
         """
-        # # if you're carrying a block that has been delivered already, drop that block
-        # if len(self._is_carrying) != 0 and self._searching_for not in self._is_carrying:
-        #     return Phase.DROP_BLOCK
-
-        # check if a goal block has been located
-        # make sure that agent does not repeat the same action
+        # if agent is carrying a block, deliver it
         if len(self._is_carrying) == 1:
             return Phase.PLAN_PATH_TO_DROP
 
-        found_goal_blocks = 0
-
-        for block in self._not_found_yet:
-            if len(self._goal_blocks[block]['location']) != 0:
-                found_goal_blocks += 1
-
-        if found_goal_blocks != 0 and len(self._is_carrying) == 0 \
-                and self._previous_phase is not Phase.RETURN_GOAL_BLOCK \
-                and self._previous_phase is not Phase.GRAB_BLOCK \
-                and self._previous_phase is not Phase.FOLLOW_PATH_TO_BLOCK:
-            # pick it up if you're not carrying anything already
-            self.find_best_path(state)
+        # if the next block has been located, start going in its direction
+        if self._goal_blocks[self._searching_for[0]]['location']:
             return Phase.PLAN_PATH_TO_BLOCK
 
         if len(self.find_doors(state, open=False, filter='everyone')) != 0:
@@ -162,15 +146,15 @@ class LazyAgent(GenericAgentTesting):
         """
         if self._finish_action is None:
             if random.uniform(0, 1) < 0.5:
-                # print('finish action')
+                print('-- finish action --')
                 self._finish_action = True
             else:
-                # print('will not finish action')
+                print('-- will not finish action --')
                 self._finish_action = False
 
         if self._finish_action is False:
             if random.uniform(0, 1) < abandon_this_step_prob:
-                # print('-- abandon now --')
+                print('--- abandon now --')
                 # stop following path
                 self._finish_action = None
                 return True

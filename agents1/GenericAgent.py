@@ -44,8 +44,9 @@ class GenericAgent(BW4TBrain):
         self._com_visited_rooms = set()  # not updated rn
         self._goal_blocks = None
         self._filter = 'agent'
-        #todo, make this generic
-        self._searching_for = "block0"
+
+        # todo, make this generic
+        self._searching_for = ["block0", "block1", "block2"]
         self._mb = None  # message builder
         self._previous_phase = None
         self._is_carrying = set()
@@ -106,7 +107,7 @@ class GenericAgent(BW4TBrain):
         #   2. if there are any closed doors, open them and search the rooms
         #   3. start searching through open rooms
         # check if a goal block has been located
-        #if self._goal_blocks[self._searching_for]['location']:
+        # if self._goal_blocks[self._searching_for]['location']:
         #    return Phase.PLAN_PATH_TO_BLOCK
 
         # find closed door that none of the agents searched
@@ -313,12 +314,12 @@ class GenericAgent(BW4TBrain):
             Drop Action
         """
         self.update_phase(phase)
-        action = DropObject.__name__, {'object_id': self._goal_blocks[self._searching_for]["id"]}
+        action = DropObject.__name__, {'object_id': self._goal_blocks[self._searching_for[0]]["id"]}
+        self._is_carrying.discard(self._searching_for[0])
 
         if block_delivered:
-            self._is_carrying.discard(self._searching_for)
-            block_num = min(2, int(self._searching_for[5]) + 1)
-            self._searching_for = f"block{block_num}"
+            # block_num = min(2, int(self._searching_for[5]) + 1)
+            self._searching_for.pop(0)
 
         return action
 
@@ -375,29 +376,29 @@ class GenericAgent(BW4TBrain):
             msg = self._mb.create_message(MessageType.SEARCHING_ROOM, room_name=self._door['room_name'])
 
         elif Phase.SEARCH_ROOM == self._phase:
-            res = self.search_room(state, None)
+            res = self.search_room(state)
 
         elif Phase.PLAN_PATH_TO_BLOCK == self._phase:
-            res = self.plan_path(self._goal_blocks[self._searching_for]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
+            res = self.plan_path(self._goal_blocks[self._searching_for[0]]["location"], Phase.FOLLOW_PATH_TO_BLOCK)
 
         elif Phase.FOLLOW_PATH_TO_BLOCK == self._phase:
             res = self.follow_path(state, Phase.GRAB_BLOCK)
 
         elif Phase.GRAB_BLOCK == self._phase:
-            res = self.grab_block(self._goal_blocks[self._searching_for]["id"], None)
+            res = self.grab_block(self._goal_blocks[self._searching_for[0]]["id"], None)
             msg = self._mb.create_message(MessageType.PICK_UP_BLOCK,
-                                          block_vis=self._goal_blocks[self._searching_for]['visualization'],
-                                          location=self._goal_blocks[self._searching_for]['location'])
+                                          block_vis=self._goal_blocks[self._searching_for[0]]['visualization'],
+                                          location=self._goal_blocks[self._searching_for[0]]['location'])
 
         elif Phase.PLAN_PATH_TO_DROP == self._phase:
-            res = self.plan_path(self._goal_blocks[self._searching_for]["drop_off"], Phase.RETURN_GOAL_BLOCK)
+            res = self.plan_path(self._goal_blocks[self._searching_for[0]]["drop_off"], Phase.RETURN_GOAL_BLOCK)
 
         elif Phase.RETURN_GOAL_BLOCK == self._phase:
             res = self.follow_path(state, Phase.DROP_BLOCK)
 
         elif Phase.DROP_BLOCK == self._phase:
             msg = self._mb.create_message(MessageType.DROP_BLOCK,
-                                          block_vis=self._goal_blocks[self._searching_for]["visualization"],
+                                          block_vis=self._goal_blocks[self._searching_for[0]]["visualization"],
                                           location=state[self.agent_name]['location'])
             res = self.drop_block(None)
 
@@ -452,9 +453,16 @@ class GenericAgent(BW4TBrain):
         if msg is None:
             return
 
-        if msg.content not in self._messages:
+        pmsg = MessageBuilder.process_message(msg)
+
+        if pmsg['type'] is not MessageType.FOUND_GOAL_BLOCK and pmsg['type'] is not MessageType.FOUND_BLOCK:
             self.send_message(msg)
             self._messages.add(msg.content)
+            print(self.agent_name, msg.content)
+        elif msg.content not in self._messages:
+            self.send_message(msg)
+            self._messages.add(msg.content)
+            print(self.agent_name, msg.content)
 
     def _processMessages(self, teamMembers):
         """
@@ -487,9 +495,14 @@ class GenericAgent(BW4TBrain):
                             or msg['type'] is MessageType.OPEN_DOOR:
                         self._com_visited_rooms.add(msg['room_name'])
 
-                    elif msg['type'] is MessageType.DROP_BLOCK \
-                            and msg['location'] == self._goal_blocks[self._searching_for]['drop_off']:
-                        self._phase = Phase.DROP_BLOCK
+                    elif msg['type'] is MessageType.DROP_BLOCK:
+                        if msg['location'] == self._goal_blocks[self._searching_for[0]]['drop_off']:
+                            self._phase = Phase.DROP_BLOCK
+                        for key, goal_block in self._goal_blocks.items():
+                            if goal_block['drop_off'] == msg['location'] \
+                                    and goal_block in self._searching_for:
+                                # remove goal block from searching_for
+                                self._searching_for.remove(goal_block)
 
                     receivedMessages[member].append(msg)
 
