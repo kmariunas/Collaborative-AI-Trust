@@ -305,10 +305,10 @@ class GenericAgentTesting(BW4TBrain):
             GrabObject Action
         """
         #print(self.agent_name)
-        print()
-        print(self.agent_name)
-        print("grabbing block")
-        print(self._is_carrying)
+        # print()
+        # print(self.agent_name)
+        # print("grabbing block")
+        # print(self._is_carrying)
         #print(self._not_found_yet)
         #print()
         self.update_phase(phase)
@@ -330,8 +330,8 @@ class GenericAgentTesting(BW4TBrain):
         self._is_carrying.add((self._searching_for["block"], blocks_id[0]))
 
         self._not_found_yet.discard(self._searching_for["block"])
-        print("after: ")
-        print(self._is_carrying)
+        # print("after: ")
+        # print(self._is_carrying)
 
         return GrabObject.__name__, {'object_id': blocks_id[0]}
 
@@ -485,10 +485,10 @@ class GenericAgentTesting(BW4TBrain):
             # if len(self._is_carrying) == 0:
             #    res = self.find_action(state)
             # else:
-            print()
-            print(self.agent_name)
-            print("dropping:")
-            print(self._is_carrying)
+            # print()
+            # print(self.agent_name)
+            # print("dropping:")
+            # print(self._is_carrying)
 
             block, id = list(self._is_carrying)[0]
             res = self.plan_path(self._goal_blocks[block]["drop_off"], Phase.RETURN_GOAL_BLOCK)

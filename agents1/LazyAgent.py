@@ -191,7 +191,7 @@ class LazyAgent(GenericAgent):
 
 
     def on_goal_block_match(self, block, goal_block, key, location, obj_id):
-        if super().on_goal_block_match(block, goal_block, key, location, obj_id) is True:
+        if super().on_goal_block_match(block, goal_block, key, location, obj_id) is True: #TODO: sometimes does not uodate goalblocks
             # delegate task to helper agents
             # first try the free agents
 
@@ -202,10 +202,12 @@ class LazyAgent(GenericAgent):
                 else:
                     to_id = random.choice(list(self._helper_agents.keys()))
             # if everyone is busy, send it to a random agent
-                print(self._goal_blocks[key]["id"], location, to_id)
+                print("LAAAAAZYYYY:", self._goal_blocks[key]["id"], location, to_id, key, obj_id)
+                print(block)
+                print(self._goal_blocks)
                 msg = self._mb.create_message(MessageType.HELP_CARRY,
                                               block_vis=block,
-                                              block_id=self._goal_blocks[key]["id"],
+                                              block_id=obj_id,
                                               location=location,
                                               to_id=to_id)
                 self._sendMessage(msg)
